@@ -196,12 +196,13 @@ class YuE2Pipeline:
         self.device = torch.device(device)
         if self.device.type == "cuda" and self.device.index is None:
             self.device = torch.device("cuda", torch.cuda.current_device())
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cuda.matmul.allow_tf32 = False
-        torch.backends.cudnn.allow_tf32 = False
-        torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = False
-        torch.set_float32_matmul_precision("highest")
+        if self.device.type == "cuda":
+            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cuda.matmul.allow_tf32 = False
+            torch.backends.cudnn.allow_tf32 = False
+            torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = False
+            torch.set_float32_matmul_precision("highest")
         self.model_dir, self.vae_dir = Path(model_dir), Path(vae_dir)
         self.backend, self.quantization = backend, quantization
         self.memory_budget_gib = float(memory_budget_gib)
@@ -306,8 +307,9 @@ class YuE2Pipeline:
                 from .fast import generate_vllm
                 result = generate_vllm(self, prefix, sampling, seed, phase, on_token=observed, **kwargs)
             else:
+                use_graph = self.backend != "torch-eager" and self.device.type == "cuda"
                 result = generate_tokens(model, prefix, sampling, seed, phase,
-                                         use_cuda_graph=self.backend != "torch-eager", on_token=observed, **kwargs)
+                                         use_cuda_graph=use_graph, on_token=observed, **kwargs)
             if result[2]:
                 status.finish(status="truncated")
             return result

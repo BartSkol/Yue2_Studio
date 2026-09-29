@@ -247,8 +247,8 @@ class QueueTests(unittest.TestCase):
             self.assertIn('automatically retried',manager.detail(job['id'])['error'])
 
     def test_oom_popup_contract_is_present(self):
-        index=(ROOT/'src/yue2_studio/static/index.html').read_text()
-        script=(ROOT/'src/yue2_studio/static/app.js').read_text()
+        index=(ROOT/'src/yue2_studio/static/index.html').read_text(encoding='utf-8')
+        script=(ROOT/'src/yue2_studio/static/app.js').read_text(encoding='utf-8')
         self.assertIn('id="oomDialog"',index)
         self.assertIn("job.failure_kind==='cuda_oom'",script)
         self.assertIn('Artist LoRA must keep AR offloading disabled',script)

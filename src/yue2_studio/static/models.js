@@ -37,7 +37,7 @@ function renderMusicModels(check){
     const note=document.createElement('p');note.textContent=model.note;
     const size=document.createElement('p');size.className='hint';size.textContent=modelBytes(model.total_bytes)+' complete bundle · '+(model.installed?'Files present':modelBytes(model.missing_bytes)+' missing');
     const use=button('Use '+model.label,()=>busy(use.id,async()=>{
-      const next=clone(state.settings);next.runtime.backend='audio.cpp';next.gguf.model_dir=d.model_dir;next.gguf.model_gguf=model.main;next.gguf.vae_gguf='yue2-vae-f16.gguf';
+      const next=clone(state.settings);next.runtime.backend='audio.cpp';next.gguf.backend=d.gpu?'cuda':'cpu';next.gguf.model_dir=d.model_dir;next.gguf.model_gguf=model.main;next.gguf.vae_gguf='yue2-vae-f16.gguf';
       if(!next.gguf.executable)next.gguf.executable=d.executable;
       const checked=await api('/api/models/check',next);if(!checked.ready)throw Error(checked.error);
       state.settings=(await api('/api/settings/validate',next)).settings;save();syncMusicEngine();await refreshMusicModels();toast(model.label+' selected. Your song is unchanged.');

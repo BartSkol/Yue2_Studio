@@ -5,9 +5,9 @@ from functools import lru_cache
 @lru_cache(maxsize=1)
 def capabilities():
     import torch
-    available = torch.backends.cuda.is_flash_attention_available()
+    available = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8 and torch.backends.cuda.is_flash_attention_available()
     return {'flash_attention': available, 'note': '' if available else
-            'This PyTorch build lacks Flash Attention. The torch backend keeps CUDA graphs enabled and selects cuDNN attention when supported (otherwise SDPA). Select torch for fast generation.'}
+            'This GPU or PyTorch build uses cuDNN / SDPA attention. The torch backend keeps CUDA graphs enabled for fast generation.'}
 
 
 def compatible_runtime(runtime, flash_attention):

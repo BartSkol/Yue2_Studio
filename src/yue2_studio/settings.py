@@ -9,13 +9,41 @@ ROOT = Path(os.environ.get('YUE2_KIT', Path(__file__).resolve().parents[2])).res
 
 
 def detected_gguf_executable():
+    import shutil
     name = 'audiocpp_cli.exe' if os.name == 'nt' else 'audiocpp_cli'
-    for checkout in (ROOT/'tools/audio.cpp', ROOT/'audio.cpp'):
-        for build in ('build/windows-cuda-release/bin', 'build/bin'):
-            candidate = checkout/build/name
+    which_path = shutil.which(name)
+    if which_path and os.path.isfile(which_path):
+        return str(Path(which_path).resolve())
+    search_dirs = (
+        ROOT/'tools/audio.cpp',
+        ROOT/'Yue2_Studio/tools/audio.cpp',
+        ROOT/'audio.cpp',
+        ROOT/'tools',
+        ROOT/'bin',
+        ROOT,
+        Path('/content/YuE/Yue2_Studio/tools/audio.cpp'),
+        Path('/content/YuE/tools/audio.cpp'),
+        Path('/content/YuE'),
+        Path('/usr/local/bin')
+    )
+    build_subdirs = (
+        'build/linux-cuda-release/bin',
+        'build/linux-cpu-release/bin',
+        'build/windows-cuda-release/bin',
+        'build/windows-cpu-release/bin',
+        'build/windows-release/bin',
+        'build/bin',
+        'build',
+        'bin',
+        ''
+    )
+    for checkout in search_dirs:
+        for build in build_subdirs:
+            candidate = checkout/build/name if build else checkout/name
             if candidate.is_file():
                 return str(candidate.resolve())
     return ''
+
 
 
 def field(key, label, default, note, *, kind=None, choices=None, minimum=None, maximum=None, step=None):
@@ -30,9 +58,9 @@ GROUPS = [
         field('vae', 'Audio decoder (VAE)', str(ROOT / 'models/YuE2-Vae'), 'Use YuE2-Vae for listening. YuE2-Vae-legacy is for reproducing the published benchmark. Accepts a local folder or Hub repository ID; the decoder identity is recorded with the song.'),
         field('revision', 'Model revision', '', 'Optional Hugging Face commit or tag for the generation model. A commit pins a reproducible snapshot. Leave blank for the repository default; local folders use their existing files.'),
         field('vae_revision', 'Decoder revision', '', 'Optional independent Hub commit or tag for the VAE. This does not change the generation model revision.'),
-        field('device', 'Compute device', 'auto', 'auto selects CUDA, then Apple MPS, then CPU. Enter cuda:0 or cuda:1 for a specific GPU. The supported baseline is a BF16-capable NVIDIA GPU with 24 GiB VRAM; CPU execution can be extremely slow.'),
+        field('device', 'Compute device', 'auto', 'auto selects CUDA, then Apple MPS, then CPU. Enter cuda:0 or cuda:1 for a specific GPU.'),
         field('memory_budget_gib', 'GPU memory budget · GiB', 24.0, 'Total runtime memory budget. The CUDA pipeline reserves 2 GiB and caps allocation against physical VRAM. Smaller budgets can use smaller decode tiles; they do not shorten the song or reduce synthesis steps.', minimum=2.1, step=.5),
-        field('backend', 'Inference backend', 'torch', 'torch uses fast CUDA graphs. Builds without Flash Attention use cuDNN attention when supported, otherwise SDPA, while retaining graphs. torch-eager disables graphs for troubleshooting and is substantially slower. vllm needs separate fast dependencies and a supported platform. audio.cpp is experimental GGUF support; configure its separate settings group. PyTorch model paths, device, memory budget, quantization, offloading and VAE tiles do not apply to audio.cpp.', choices=['torch','torch-eager','vllm','audio.cpp']),
+        field('backend', 'Inference backend', 'torch', 'torch uses fast CUDA graphs. Builds without Flash Attention use cuDNN attention when supported, otherwise SDPA, while retaining graphs. torch-eager disables graphs for troubleshooting and CPU. vllm needs separate fast dependencies and a supported platform. audio.cpp is experimental GGUF support; configure its separate settings group. PyTorch model paths, device, memory budget, quantization, offloading and VAE tiles do not apply to audio.cpp.', choices=['torch','torch-eager','vllm','audio.cpp']),
         field('quantization', 'Weight quantization', 'none', 'none preserves the baseline model precision. fp8 uses the optional runtime FP8 path to reduce weight memory; hardware/backend support and output quality require separate validation.', choices=['none','fp8']),
         field('offload_ar', 'Offload autoregressive model', False, 'Release/offload the autoregressive model before acoustic synthesis to reduce peak GPU memory. Reloading increases latency. This is not a lower-quality sampling preset.'),
         field('local_files_only', 'Offline model loading', True, 'Only use local files and already cached snapshots. Disable to allow Hugging Face downloads. LLM API calls are controlled separately by your chosen runner.'),
@@ -52,7 +80,7 @@ GROUPS.append(dict(id='gguf', title='audio.cpp / GGUF', subtitle='Experimental a
     field('model_dir','GGUF model folder',str(ROOT/'models/Yue2-3B-GGUF'),'Folder containing the main GGUF, VAE GGUF and sidecars subfolder. Download only the component precision you want plus all sidecars.'),
     field('model_gguf','Main GGUF','yue2-3b-q8_0.gguf','Q8 is the balanced default. Q4 uses smaller weights but is not necessarily faster or identical in quality. Paths are relative to the GGUF folder.',choices=['yue2-3b-q8_0.gguf','yue2-3b-q4_0.gguf','yue2-3b-bf16.gguf']),
     field('vae_gguf','GGUF decoder','yue2-vae-f16.gguf','F16 reduces VAE weight memory. F32 uses more memory. The GGUF decoder is separate from the PyTorch VAE.',choices=['yue2-vae-f16.gguf','yue2-vae-f32.gguf']),
-    field('backend','audio.cpp device backend','cuda','Must be compiled into your audio.cpp binary. CUDA is the NVIDIA path; other backends depend on your build and are not locally validated.',choices=['cuda','cpu','vulkan','metal','hip']),
+    field('backend','audio.cpp device backend','cpu','Device backend for audio.cpp. cpu is the universal CPU path; cuda is for NVIDIA builds.',choices=['cpu','cuda','vulkan','metal','hip']),
     field('threads','audio.cpp CPU threads',8,'CPU threads for the C++ engine. More is not always faster when sharing the CPU with other programs.',kind='integer',minimum=1,maximum=256),
 ]))
 for key,value,note in [

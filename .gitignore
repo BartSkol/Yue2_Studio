@@ -13,3 +13,9 @@ hf_modules/
 .studio-backups/
 .env
 *.log
+audiocpp_cli
+audiocpp_cli.exe
+audiocpp_cli-linux-cuda.tar.gz
+bin/
+tools/
+

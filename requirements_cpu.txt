@@ -1,0 +1,8 @@
+# YuE2 Studio - CPU Runtime Requirements
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2.0
+soundfile>=0.12.1
+numpy>=1.24.0
+tiktoken>=0.7.0
+huggingface_hub>=0.23.0
+scipy>=1.11.0

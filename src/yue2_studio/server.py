@@ -173,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not re.fullmatch(r'[a-f0-9]{32}\.[a-z0-9]+',name):
                     raise ValueError('Unknown upload.')
                 self.file(self.server.jobs.uploads/name)
-            elif path in ('/','/index.html','/app.js','/audius.js','/library.js','/models.js','/loras.js','/trainer.js','/artist.js','/style.css','/mark.svg'):
+            elif path in ('/','/index.html','/app.js','/chat.js','/audius.js','/library.js','/models.js','/loras.js','/trainer.js','/artist.js','/style.css','/mark.svg'):
                 self.file(STATIC/('index.html' if path=='/' else path[1:]))
             else:
                 self.json({'error':'Not found.'},404)
@@ -325,6 +325,47 @@ class Handler(BaseHTTPRequestHandler):
                     self.json(llm.complete(data,'You are a helpful assistant.','Reply with a short connection confirmation.') if path.endswith('/test') else llm.assist(data))
                 finally:
                     self.server.llm_lock.release()
+            elif path=='/api/chat/produce':
+                if not self.server.llm_lock.acquire(blocking=False):
+                    self.json({'error':'The AI Producer is already working. Wait for its response.'},409)
+                    return
+                try:
+                    result = llm.produce(data)
+                finally:
+                    self.server.llm_lock.release()
+                job = None
+                auto_generate = data.get('auto_generate', True)
+                draft = result.get('draft')
+                if auto_generate and draft and draft.get('style'):
+                    with self.server.models.lock:
+                        if not self.server.models.busy():
+                            current_song = data.get('current_song') or {}
+                            job_payload = {
+                                'title': draft.get('title') or current_song.get('title') or 'Untitled track',
+                                'mode': current_song.get('mode', 'create'),
+                                'stage': 'audio',
+                                'request': {
+                                    'style': draft['style'],
+                                    'lyrics': draft.get('lyrics', ''),
+                                    'cot': draft.get('cot', 'full'),
+                                    'seed': secrets.randbelow(2**31 - 1),
+                                    'id': 'song'
+                                },
+                                'settings': data.get('settings') or defaults(),
+                                'source_job': current_song.get('source_job', '')
+                            }
+                            if current_song.get('abc'):
+                                job_payload['request']['abc'] = current_song['abc']
+                            try:
+                                job = self.server.jobs.generate(job_payload)
+                            except Exception as gen_err:
+                                result['warning'] = f"Generation queue warning: {gen_err}"
+                self.json({'reply': draft.get('producer_reply') if draft else result.get('text', ''),
+                           'draft': draft,
+                           'job': job,
+                           'provider': result.get('provider'),
+                           'model': result.get('model'),
+                           'warning': result.get('warning')}, 201 if job else 200)
             else:
                 self.json({'error':'Not found.'},404)
         except (BrokenPipeError,ConnectionResetError):

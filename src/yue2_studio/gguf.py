@@ -13,9 +13,18 @@ NON_NATIVE = ('model','vae','revision','vae_revision','device','memory_budget_gi
 def validate(settings, stage):
     if stage != 'audio':
         raise ValueError('audio.cpp currently exposes complete audio generation only. Use torch for Plan only and generated ABC export.')
-    cfg=settings['gguf'];exe=Path(cfg['executable'])
+    from .settings import detected_gguf_executable
+    cfg=settings['gguf']
+    exe_raw = cfg.get('executable', '').strip()
+    exe = Path(exe_raw) if exe_raw else Path('')
+    if not exe.is_file():
+        detected = detected_gguf_executable()
+        if detected and Path(detected).is_file():
+            exe = Path(detected)
+            cfg['executable'] = str(exe.resolve())
     if not exe.is_file() or exe.name.lower() not in ('audiocpp_cli','audiocpp_cli.exe'):
         raise ValueError('Set the full path to a Yue2-capable audiocpp_cli executable in audio.cpp / GGUF settings.')
+
     root=Path(cfg['model_dir'])
     for relative in [cfg['model_gguf'],cfg['vae_gguf'],*('sidecars/'+name for name in SIDECARS)]:
         if not (root/relative).is_file():
@@ -32,8 +41,9 @@ def prepare(spec, directory):
     if request.get('abc'):
         score=directory/'score.abc';score.write_text(request['abc'],encoding='utf-8');options['abc_file']=str(score.resolve())
     sequence=directory/'audiocpp-request.json'
+    lyrics = request['lyrics'] if request.get('lyrics') else '[instrumental]'
     # All values, particularly 63-bit seeds, are strings: audio.cpp parses JSON numbers as doubles.
-    sequence.write_text(json.dumps([{'id':'song','text':request['lyrics'],'options':options}],ensure_ascii=False,indent=2),encoding='utf-8')
+    sequence.write_text(json.dumps([{'id':'song','text':lyrics,'options':options}],ensure_ascii=False,indent=2),encoding='utf-8')
     session={key:str(value) for key,value in cfg.items() if key not in ('executable','model_dir','backend','threads')}
     command=[str(Path(cfg['executable']).resolve()),'--task','gen','--family','yue2','--model',str(Path(cfg['model_dir']).resolve()),
              '--backend',cfg['backend'],'--threads',str(cfg['threads']),'--request-sequence',str(sequence.resolve()),

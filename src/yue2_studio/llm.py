@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 
 PROMPT = (Path(__file__).parent / 'prompts/songwriter.md').read_text(encoding='utf-8')
+PRODUCER_PROMPT = (Path(__file__).parent / 'prompts/producer.md').read_text(encoding='utf-8')
 PROVIDERS = [
     dict(id='openai', label='OpenAI', url='https://api.openai.com/v1', protocol='responses', key=True),
     dict(id='anthropic', label='Anthropic', url='https://api.anthropic.com/v1', protocol='anthropic', key=True),
@@ -227,3 +228,60 @@ def assist(payload):
         result['draft'] = None
         result['warning'] = 'The model did not return a complete structured draft. The raw response is preserved below. Try again or increase the output-token limit.'
     return result
+
+
+def produce(payload):
+    message = str(payload.get('message') or '').strip()
+    if not message:
+        raise ValueError('Describe your musical direction or changes for the AI Producer.')
+    custom = str(payload.get('instructions') or '')
+    history = payload.get('history') or []
+    current_song = payload.get('current_song') or {}
+    
+    context = {
+        'title': str(current_song.get('title') or ''),
+        'style': str(current_song.get('style') or ''),
+        'lyrics': str(current_song.get('lyrics') or ''),
+        'cot': str(current_song.get('cot') or 'full'),
+        'abc': str(current_song.get('abc') or '')
+    }
+    
+    producer_input = {
+        'current_song': context,
+        'conversation_history': history[-10:],
+        'user_request': message
+    }
+    
+    system = PRODUCER_PROMPT + ('\n\nUSER PRODUCER PREFERENCES:\n' + custom if custom else '')
+    user_json = json.dumps(producer_input, ensure_ascii=False)
+    
+    result = complete(payload.get('connection'), system, user_json)
+    raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', result['text'], flags=re.I).strip()
+    match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if match:
+        raw = match.group(0)
+        
+    try:
+        draft = json.loads(raw)
+        if not isinstance(draft, dict):
+            raise ValueError('Expected JSON object')
+        result['draft'] = {
+            'producer_reply': str(draft.get('producer_reply') or draft.get('notes') or 'Here is your updated track!'),
+            'title': str(draft.get('title') or context['title'] or 'Untitled Track')[:180],
+            'style': str(draft.get('style') or context['style'] or ''),
+            'lyrics': str(draft.get('lyrics') or context['lyrics'] or ''),
+            'cot': str(draft.get('cot') or context['cot'] or 'full'),
+            'producer_notes': str(draft.get('producer_notes') or draft.get('notes') or '')
+        }
+    except (ValueError, TypeError):
+        result['draft'] = {
+            'producer_reply': result['text'],
+            'title': context['title'] or 'Untitled Track',
+            'style': context['style'],
+            'lyrics': context['lyrics'],
+            'cot': context['cot'],
+            'producer_notes': 'Model returned raw text.'
+        }
+        result['warning'] = 'The model response was not strict JSON, but was captured as direct producer feedback.'
+    return result
+
