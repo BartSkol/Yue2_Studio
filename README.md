@@ -1,12 +1,15 @@
-# 🎛️ YuE2 Studio · AI Music Producer & GGUF Engine
+# 🎛️ YuE2 Studio · Colab & AI Producer Edition
 
-An avant-garde, local and cloud-ready Web Studio for **YuE2 (multimodal-art-projection)** featuring:
-* 🤖 **AI Music Producer Chat:** Conversational music iteration with inline audio players & version tracking.
+> **Credits & Upstream Lineage:**  
+> This project is a specialized, Colab T4-optimized distribution based on **[Yue2_Studio](https://github.com/vrgamegirl19/Yue2_Studio)** by **[vrgamegirl19](https://github.com/vrgamegirl19)**, built on the official **[YuE2](https://github.com/multimodal-art-projection/YuE)** model by **multimodal-art-projection**, with GGUF quantization powered by **[audio.cpp](https://github.com/0xShug0/audio.cpp)**.
+
+An avant-garde, local and cloud-ready Web Studio featuring:
+* 🤖 **AI Music Producer Chat:** Conversational track iteration with inline audio players & version tracking.
 * 🎛️ **Collapsible Avant-Garde UI:** Mini-rail sidebar, full-width composer room, and section accordions.
-* ⚡ **audio.cpp GGUF Engine:** Ultra-fast quantized inference (Q4/Q8) with 60% lower VRAM on Tesla T4, RTX 3060-5090.
-* 🚀 **1-Click Google Colab Notebook:** Pre-compiled CUDA binary from GitHub Releases (2-second setup) with public Cloudflare Tunnel.
-* ✍️ **Local & Cloud Songwriter:** Built-in Ollama Qwen 2.5 3B integration and cloud LLM support.
-* 🎨 **Style & Artist LoRA Training:** Experimental LoRA trainer and SheetSage2 cover transcription.
+* 📥 **1-Click Hugging Face LoRA Downloader:** Download community style adapters directly from WebUI.
+* ⚡ **audio.cpp GGUF Engine:** Ultra-fast quantized inference (Q4/Q8) with 60% lower VRAM — 2-min song in **~90 seconds** on free Tesla T4.
+* 🚀 **1-Click Google Colab Notebook:** Pre-compiled CUDA binary from GitHub Releases with public Cloudflare Tunnel.
+* ✍️ **Local GPU Songwriter:** Built-in Ollama Qwen 2.5 3B on GPU for zero-cost lyrics & music producer chat.
 
 [![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/BartSkol/Yue2_Studio/blob/main/YuE2_Studio_Colab_GPU.ipynb)
 [![GitHub Release](https://img.shields.io/github/v/release/BartSkol/Yue2_Studio?include_prereleases&color=blue)](https://github.com/BartSkol/Yue2_Studio/releases/tag/v0.1.0-colab-gpu)
@@ -86,6 +89,7 @@ YuE2_Studio/
 ---
 
 ## 📜 License & Credits
-* Built on top of **YuE2** by [multimodal-art-projection](https://github.com/multimodal-art-projection/YuE).
-* GGUF engine powered by [audio.cpp](https://github.com/0xShug0/audio.cpp).
-* Studio overlay and AI Producer Chat developed by [BartSkol](https://github.com/BartSkol).
+* Original **YuE2** architecture by [multimodal-art-projection](https://github.com/multimodal-art-projection/YuE) (Apache 2.0).
+* Original **Yue2_Studio** WebUI by [vrgamegirl19](https://github.com/vrgamegirl19/Yue2_Studio) (Apache 2.0).
+* GGUF quantized engine powered by [audio.cpp](https://github.com/0xShug0/audio.cpp).
+* Colab T4 distribution, AI Music Producer Chat, Hugging Face LoRA Downloader & Mobile optimizations by [BartSkol](https://github.com/BartSkol).

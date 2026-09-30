@@ -230,6 +230,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.json(self.server.models.start(data.get('variant')),202)
             elif path=='/api/models/cancel':
                 self.json(self.server.models.cancel())
+            elif path=='/api/loras/download':
+                from .loras import download_lora
+                src = data.get('source') or data.get('repo_id') or ''
+                self.json(download_lora(src))
             elif path=='/api/surprises':
                 with self.server.models.lock:
                     if self.server.models.busy(): raise ValueError('Wait for the model download to finish or cancel it first.')

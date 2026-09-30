@@ -71,6 +71,27 @@ function bindLoras(){
   if($('refreshSurpriseLoras'))$('refreshSurpriseLoras').onclick=()=>busy('refreshSurpriseLoras',refreshLoras);
   $('loraStrength').oninput=()=>{state.settings.lora.strength=Number($('loraStrength').value);syncLoras();save();};
   $('loraAutoTrigger').onchange=()=>{state.settings.lora.auto_trigger=$('loraAutoTrigger').checked;syncLoras();save();};
+  if($('downloadHfLora'))$('downloadHfLora').onclick=()=>busy('downloadHfLora',async()=>{
+    const source=$('loraHfInput')?.value.trim();
+    if(!source){toast('Please enter a Hugging Face model repo ID or URL.',true);return;}
+    if($('loraHfStatus'))$('loraHfStatus').textContent='Downloading LoRA weights from Hugging Face…';
+    try{
+      const res=await api('/api/loras/download',{source});
+      toast(`LoRA "${res.repo_id}" downloaded successfully!`);
+      if($('loraHfStatus'))$('loraHfStatus').textContent=`Downloaded to: ${res.folder}`;
+      if($('loraHfInput'))$('loraHfInput').value='';
+      await refreshLoras();
+      const firstFound=loraCatalogue.find(item=>item.path.includes(res.repo_id.replace('/','_')));
+      if(firstFound){
+        state.settings.lora.path=firstFound.path;
+        syncLoras();save();
+        await inspectSelectedLora(firstFound.path,true);
+      }
+    }catch(err){
+      if($('loraHfStatus'))$('loraHfStatus').textContent='Error: '+err.message;
+      toast('LoRA download error: '+err.message,true);
+    }
+  },'Downloading…');
   $('useLocalLora').onclick=()=>busy('useLocalLora',async()=>{
     const previousStyle=loraStyleSnapshot();
     const path=$('loraLocalPath').value.trim().replace(/^"(.*)"$/,'$1');

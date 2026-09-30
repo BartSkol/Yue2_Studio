@@ -269,7 +269,24 @@
                     <label class="check-label"><input id="loraAutoTrigger" type="checkbox" checked>Automatically include trigger phrase</label>
                     <p class="hint">Added to the submitted style without changing your editor. Your choice is saved with each song.</p>
                   </div>
-                  <details class="lora-help"><summary>Add a local LoRA / folder location</summary><p class="hint" id="loraFolder"></p><label for="loraLocalPath">Or paste a local YuE2 adapter path</label><div class="row"><input id="loraLocalPath" type="text" placeholder="E:\models\my_style.safetensors" spellcheck="false"><button type="button" class="button subtle small" id="useLocalLora">Use file</button></div><p class="hint">YuE2 acoustic Style adapters only. Adapters for other models cannot be used here.</p></details>
+                  <details class="lora-help"><summary>📥 Download from Hugging Face or add local LoRA</summary>
+                    <div style="margin-top:10px;">
+                      <label for="loraHfInput">Download LoRA from Hugging Face</label>
+                      <div class="row gap-s">
+                        <input id="loraHfInput" type="text" placeholder="e.g. Mothersuperior/YuE2-instrumental-cot-full-loras" spellcheck="false">
+                        <button type="button" class="button primary small" id="downloadHfLora"><svg><use href="#i-download"/></svg> Download</button>
+                      </div>
+                      <p class="hint" id="loraHfStatus">Enter a Hugging Face repo ID or direct model URL.</p>
+                    </div>
+                    <div style="margin-top:12px;">
+                      <label for="loraLocalPath">Or select a local file path</label>
+                      <div class="row gap-s">
+                        <input id="loraLocalPath" type="text" placeholder="/content/YuE/models/loras/my_style.safetensors" spellcheck="false">
+                        <button type="button" class="button subtle small" id="useLocalLora">Use file</button>
+                      </div>
+                      <p class="hint" id="loraFolder"></p>
+                    </div>
+                  </details>
                 </section>
               </div>
             </div>

@@ -36,12 +36,38 @@ def inspect_adapter(path):
     return {**adapter.info(1.0), 'training_style':training_style(adapter.metadata)}
 
 
+def download_lora(source: str):
+    import re
+    from huggingface_hub import snapshot_download, hf_hub_download
+    source = str(source).strip()
+    if not source:
+        raise ValueError('Enter a Hugging Face repo ID (e.g. Mothersuperior/YuE2-instrumental-cot-full-loras) or URL.')
+    repo_id = source
+    filename = None
+    if 'huggingface.co/' in source:
+        parts = source.split('huggingface.co/')[-1].split('/')
+        if len(parts) >= 2:
+            repo_id = f"{parts[0]}/{parts[1]}"
+        if 'blob/' in source or 'resolve/' in source:
+            sub = re.split(r'/(?:blob|resolve)/[^/]+/', source)[-1]
+            if sub.endswith('.safetensors'):
+                filename = sub
+
+    target_dir = ROOT / 'models' / 'loras' / repo_id.replace('/', '_')
+    target_dir.mkdir(parents=True, exist_ok=True)
+    if filename:
+        hf_hub_download(repo_id=repo_id, filename=filename, local_dir=str(target_dir))
+    else:
+        snapshot_download(repo_id=repo_id, local_dir=str(target_dir), allow_patterns=["*.safetensors", "*.json"])
+    return {'status': 'ok', 'repo_id': repo_id, 'folder': str(target_dir), 'catalogue': catalogue()}
+
+
 def catalogue():
     from safetensors import safe_open, SafetensorError
     from yue2.lora import _targets
     folder = ROOT / 'models' / 'loras'
     items, rejected = [], []
-    for path in sorted(folder.glob('*.safetensors')):
+    for path in sorted(folder.rglob('*.safetensors')):
         try:
             # Inspect headers only; listing never loads all adapter tensors.
             with safe_open(path, framework='pt', device='cpu') as handle:
