@@ -512,6 +512,22 @@ function renderChatMessages() {
           }
         };
 
+        const inspectorBtn = document.createElement('button');
+        inspectorBtn.type = 'button';
+        inspectorBtn.className = 'button subtle small';
+        inspectorBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspector`;
+        inspectorBtn.title = 'Open proposal in Right-Hand Workstation Inspector';
+        inspectorBtn.onclick = () => {
+          syncInspectorPanel(msg.draft);
+          const p = $('chatInspectorPanel');
+          if (p) {
+            p.scrollIntoView({ behavior: 'smooth' });
+            p.style.borderColor = 'var(--accent)';
+            setTimeout(() => { p.style.borderColor = ''; }, 1200);
+          }
+          toast('Proposal opened in Track Inspector.');
+        };
+
         const loadBtn = document.createElement('button');
         loadBtn.type = 'button';
         loadBtn.className = 'button subtle small';
@@ -535,9 +551,16 @@ function renderChatMessages() {
           toast('Style prompt copied to clipboard.');
         };
 
-        draftActions.append(renderBtn, loadBtn, copyPromptBtn);
+        draftActions.append(renderBtn, inspectorBtn, loadBtn, copyPromptBtn);
         draftCard.append(draftActions);
       }
+
+      draftCard.style.cursor = 'pointer';
+      draftCard.onclick = (e) => {
+        if (e.target.closest('button, input, textarea, a, summary, details')) return;
+        syncInspectorPanel(msg.draft);
+        toast('Loaded proposal into Track Inspector.');
+      };
 
       bubble.append(draftCard);
     }
