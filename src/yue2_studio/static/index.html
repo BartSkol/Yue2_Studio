@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js" defer></script><script src="/library.js" defer></script><script src="/loras.js" defer></script><script src="/trainer.js" defer></script><script src="/artist.js" defer></script><script src="/audius.js" defer></script><script src="/chat.js" defer></script><script src="/app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=2.2.0"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js?v=2.2.0" defer></script><script src="/library.js?v=2.2.0" defer></script><script src="/loras.js?v=2.2.0" defer></script><script src="/trainer.js?v=2.2.0" defer></script><script src="/artist.js?v=2.2.0" defer></script><script src="/audius.js?v=2.2.0" defer></script><script src="/chat.js?v=2.2.0" defer></script><script src="/app.js?v=2.2.0" defer></script></head>
 <body>
 <svg class="icon-defs" aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -391,8 +391,77 @@
                 <button class="button primary" id="chatSendBtn"><svg><use href="#i-arrow"/></svg> Send</button>
               </div>
             </div>
-          </div>
         </section>
+
+        <!-- Right Side: Live Track Inspector & LoRA Controls -->
+        <aside class="chat-inspector-panel" id="chatInspectorPanel">
+          <div class="inspector-header">
+            <div>
+              <span class="eyebrow">TRACK WORKSTATION</span>
+              <h2>Inspector</h2>
+            </div>
+            <button class="button quiet small" id="syncInspectorToComposer" title="Copy active proposal to main Studio Composer"><svg><use href="#i-upload"/></svg>To Studio</button>
+          </div>
+
+          <div class="inspector-scroll-area">
+            <div class="inspector-field-group">
+              <label class="field-label" for="inspectorTitle">TRACK TITLE</label>
+              <input id="inspectorTitle" type="text" class="title-input-s" placeholder="Give this proposal a name">
+            </div>
+
+            <div class="inspector-field-group">
+              <div class="row between">
+                <label class="field-label" for="inspectorStyle">STYLE PROMPT</label>
+                <button type="button" class="text-button" id="inspectorCopyStyle">Copy</button>
+              </div>
+              <textarea id="inspectorStyle" rows="3" class="style-input-s" placeholder="Genre, instruments, vocals, BPM, atmosphere…"></textarea>
+            </div>
+
+            <div class="inspector-field-group">
+              <div class="row between">
+                <label class="field-label" for="inspectorLyrics">LYRICS & STRUCTURE</label>
+                <button type="button" class="text-button" id="inspectorCopyLyrics">Copy</button>
+              </div>
+              <textarea id="inspectorLyrics" rows="7" class="lyrics-input-s" placeholder="[Verse]&#10;...&#10;&#10;[Chorus]&#10;..."></textarea>
+            </div>
+
+            <div class="inspector-field-group">
+              <label class="field-label" for="inspectorMode">GENERATION MODE</label>
+              <select id="inspectorMode">
+                <option value="full">Full · Melody + Harmony</option>
+                <option value="melody">Melody · Free Accompaniment</option>
+                <option value="off">Direct Audio · No Score</option>
+              </select>
+            </div>
+
+            <div class="inspector-field-group">
+              <div class="row between">
+                <label class="field-label" for="inspectorLora">STYLE / ARTIST LORA</label>
+                <span class="field-sub" id="inspectorLoraVal">1.00</span>
+              </div>
+              <select id="inspectorLora">
+                <option value="">None · Original YuE2</option>
+              </select>
+              <div id="inspectorLoraOptions" style="margin-top:6px;">
+                <input id="inspectorLoraStrength" type="range" min="0" max="2" step="0.05" value="1">
+              </div>
+            </div>
+
+            <div class="inspector-field-group">
+              <label class="field-label" for="inspectorSeed">SEED</label>
+              <div class="seed-input">
+                <input id="inspectorSeed" type="text" inputmode="numeric" pattern="[0-9]+" value="831001" maxlength="19">
+                <button id="inspectorRandomSeed" title="Randomize seed"><svg><use href="#i-refresh"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="inspector-footer">
+            <button class="button primary" id="inspectorRenderBtn" style="width:100%; justify-content:center; padding:12px 16px; font-weight:700;">
+              <svg><use href="#i-arrow"/></svg> <span>Render Track on GPU</span>
+            </button>
+          </div>
+        </aside>
       </div>
     </main>
     <main id="libraryView" hidden><section class="page-intro"><div><div class="eyebrow"><span class="tiny-line"></span> MADE IN YOUR STUDIO</div><h1>Your sounds, all in one place.</h1><p>Listen, revisit a score, or take a song in a new direction.</p></div><button class="button subtle" id="refreshLibrary"><svg><use href="#i-refresh"/></svg>Refresh</button></section><div class="library-toolbar"><input id="librarySearch" placeholder="Search your songs…" aria-label="Search songs"><select id="libraryFilter" aria-label="Filter runs"><option value="all">Show everything</option><option value="starred">Starred only</option><option value="completed">Completed songs</option><option value="gguf">All GGUF songs</option><option value="torch">All Torch songs</option><option value="failed">Failed only</option><option value="active">Queued &amp; running only</option></select><select id="libraryDateFilter" aria-label="Filter by creation date"><option value="all">Any date</option><option value="today">Created today</option><option value="yesterday">Created yesterday</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Choose a date…</option></select><input id="libraryDate" type="date" aria-label="Choose creation date" hidden></div><div id="libraryList"></div><div id="libraryEmpty" class="empty-state"><div class="empty-record"><span></span></div><h2>Your first song belongs here.</h2><p>Create a song or transcribe a recording.<br>Its audio, score, settings, and progress will appear here.</p><button class="button primary" id="libraryCreate">Make some music<svg><use href="#i-arrow"/></svg></button></div></main>

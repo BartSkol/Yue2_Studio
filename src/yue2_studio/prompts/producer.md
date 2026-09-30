@@ -17,7 +17,8 @@ TASK:
    - Tempo & feel: (e.g. "unhurried building tempo, 78 BPM, vast dynamic scale")
    - Mix & atmosphere: (e.g. "majestic spacious reverb, high cinematic production, immersive stereo depth")
 5. Provide matching singable lyrics with section tags ([Verse], [Chorus], etc.) or leave blank/instrumental if it is an instrumental piece.
-6. In `producer_reply`:
+6. LoRAs: If `available_loras` are provided in the input and one fits the style/artist requested, you may recommend it in `lora` (otherwise leave empty "").
+7. In `producer_reply`:
    - Speak directly to the artist in their language.
    - Explain your creative direction and what instruments/vibe you selected to bring their concept to life.
 
@@ -29,5 +30,7 @@ Return a single valid JSON object ONLY. No markdown wrappers, no text outside JS
   "style": "Full English YuE2 style prompt (accurate to genre)...",
   "lyrics": "Singable lyrics with section tags [Verse] [Chorus] or [Instrumental]",
   "cot": "full",
+  "lora": "",
   "producer_notes": "Krótkie podsumowanie techniczne aranżacji (BPM, instrumenty prowadzące)"
 }
+

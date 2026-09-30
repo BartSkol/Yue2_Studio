@@ -35,12 +35,53 @@ function loadChatStorage() {
   }
 }
 
+function syncInspectorPanel(data) {
+  if (!data) {
+    const ctx = getActiveChatContext();
+    data = ctx;
+  }
+  populateInspectorLoras();
+  if ($('inspectorTitle')) $('inspectorTitle').value = data.title || '';
+  if ($('inspectorStyle')) $('inspectorStyle').value = data.style || '';
+  if ($('inspectorLyrics')) $('inspectorLyrics').value = data.lyrics || '';
+  if ($('inspectorMode')) $('inspectorMode').value = data.cot || 'full';
+  if ($('inspectorSeed')) $('inspectorSeed').value = data.seed || Math.floor(Math.random() * (2**31 - 1));
+  if ($('inspectorLora')) {
+    if (data.lora_path) {
+      $('inspectorLora').value = data.lora_path;
+    } else if (data.lora) {
+      const found = Array.isArray(loraCatalogue) ? loraCatalogue.find(l => l.name === data.lora || l.path.includes(data.lora)) : null;
+      if (found) $('inspectorLora').value = found.path;
+      else if (state.settings?.lora?.path) $('inspectorLora').value = state.settings.lora.path;
+    } else if (state.settings?.lora?.path) {
+      $('inspectorLora').value = state.settings.lora.path;
+    }
+  }
+  const strength = data.lora_strength !== undefined ? data.lora_strength : (state.settings?.lora?.strength ?? 1.0);
+  if ($('inspectorLoraStrength')) $('inspectorLoraStrength').value = strength;
+  if ($('inspectorLoraVal')) $('inspectorLoraVal').textContent = Number(strength).toFixed(2);
+}
+
+function populateInspectorLoras() {
+  const select = $('inspectorLora');
+  if (!select) return;
+  const currentVal = select.value;
+  select.replaceChildren(new Option('None · Original YuE2', ''));
+  if (Array.isArray(loraCatalogue)) {
+    loraCatalogue.forEach(item => {
+      select.add(new Option((item.kind === 'artist' ? 'Artist · ' : 'Style · ') + (item.name || item.path), item.path));
+    });
+  }
+  if (currentVal) select.value = currentVal;
+}
+
 function initChat() {
   loadChatStorage();
   bindChatUI();
   renderChatMessages();
   renderChatVersions();
   updateChatBaseIndicator();
+  syncInspectorPanel();
 
   // Check URL params for standalone view mode (?view=chat)
   const params = new URLSearchParams(window.location.search);
@@ -63,7 +104,8 @@ function getActiveChatContext() {
         cot: v.cot || $('planMode')?.value || 'full',
         abc: $('abc')?.value || '',
         mode: state.mode || 'create',
-        source_job: v.job_id || state.sourceJob || ''
+        source_job: v.job_id || state.sourceJob || '',
+        seed: v.seed || null
       };
     }
   }
@@ -74,7 +116,8 @@ function getActiveChatContext() {
     cot: $('planMode')?.value || 'full',
     abc: $('abc')?.value || '',
     mode: state.mode || 'create',
-    source_job: state.sourceJob || ''
+    source_job: state.sourceJob || '',
+    seed: $('seed')?.value || null
   };
 }
 
@@ -94,6 +137,8 @@ function updateChatBaseIndicator() {
 
 function setChatBaseVersion(versionId) {
   chatState.activeBaseVersionId = versionId;
+  const v = versionId ? chatState.versions.find(item => item.id === versionId) : null;
+  syncInspectorPanel(v);
   updateChatBaseIndicator();
   renderChatVersions();
   toast(versionId ? 'Base song set for AI Producer conversation.' : 'Base song reset to current Studio composer.');
@@ -124,6 +169,8 @@ function renderChatVersions() {
     const isBase = chatState.activeBaseVersionId === v.id;
     const card = document.createElement('article');
     card.className = `version-card ${isBase ? 'active-base' : ''}`;
+    card.style.cursor = 'pointer';
+    card.onclick = () => syncInspectorPanel(v);
 
     const header = document.createElement('div');
     header.className = 'version-card-header';
@@ -659,6 +706,7 @@ async function sendChatMessage() {
     renderChatMessages();
     renderChatVersions();
     updateChatBaseIndicator();
+    syncInspectorPanel(newVersion);
 
     if (jobId) {
       chatState.activeChatJobId = jobId;
@@ -701,6 +749,7 @@ function clearChatSession() {
     renderChatMessages();
     renderChatVersions();
     updateChatBaseIndicator();
+    syncInspectorPanel();
     toast('Chat session cleared.');
   });
 }
@@ -708,6 +757,200 @@ function clearChatSession() {
 function openChatPopout() {
   const url = `${window.location.origin}/?view=chat`;
   window.open(url, 'YuE2_AI_Producer_Chat', 'width=1320,height=860,menubar=no,toolbar=no,location=no,status=no');
+}
+
+function bindInspectorUI() {
+  const title = $('inspectorTitle');
+  const style = $('inspectorStyle');
+  const lyrics = $('inspectorLyrics');
+  const mode = $('inspectorMode');
+  const lora = $('inspectorLora');
+  const loraStrength = $('inspectorLoraStrength');
+  const loraVal = $('inspectorLoraVal');
+  const seed = $('inspectorSeed');
+  const randSeed = $('inspectorRandomSeed');
+  const renderBtn = $('inspectorRenderBtn');
+  const syncBtn = $('syncInspectorToComposer');
+  const copyStyleBtn = $('inspectorCopyStyle');
+  const copyLyricsBtn = $('inspectorCopyLyrics');
+
+  const updateActiveVersionDraft = () => {
+    if (chatState.activeBaseVersionId) {
+      const v = chatState.versions.find(item => item.id === chatState.activeBaseVersionId);
+      if (v) {
+        if (title) v.title = title.value;
+        if (style) v.style = style.value;
+        if (lyrics) v.lyrics = lyrics.value;
+        if (mode) v.cot = mode.value;
+        if (seed) v.seed = seed.value;
+        if (lora) v.lora_path = lora.value;
+        if (loraStrength) v.lora_strength = Number(loraStrength.value);
+        saveChatStorage();
+        renderChatVersions();
+        updateChatBaseIndicator();
+      }
+    }
+  };
+
+  if (title) title.oninput = updateActiveVersionDraft;
+  if (style) style.oninput = updateActiveVersionDraft;
+  if (lyrics) lyrics.oninput = updateActiveVersionDraft;
+  if (mode) mode.onchange = updateActiveVersionDraft;
+
+  if (lora) {
+    lora.onchange = () => {
+      if (state.settings?.lora) {
+        state.settings.lora.path = lora.value;
+        if (typeof syncLoras === 'function') syncLoras();
+        if (typeof save === 'function') save();
+      }
+      updateActiveVersionDraft();
+    };
+  }
+
+  if (loraStrength) {
+    loraStrength.oninput = () => {
+      const val = Number(loraStrength.value);
+      if (loraVal) loraVal.textContent = val.toFixed(2);
+      if (state.settings?.lora) {
+        state.settings.lora.strength = val;
+        if (typeof syncLoras === 'function') syncLoras();
+        if (typeof save === 'function') save();
+      }
+      updateActiveVersionDraft();
+    };
+  }
+
+  if (randSeed && seed) {
+    randSeed.onclick = () => {
+      seed.value = Math.floor(Math.random() * (2**31 - 1));
+      updateActiveVersionDraft();
+    };
+  }
+
+  if (copyStyleBtn && style) {
+    copyStyleBtn.onclick = async () => {
+      await navigator.clipboard.writeText(style.value || '');
+      toast('Style prompt copied to clipboard.');
+    };
+  }
+
+  if (copyLyricsBtn && lyrics) {
+    copyLyricsBtn.onclick = async () => {
+      await navigator.clipboard.writeText(lyrics.value || '');
+      toast('Lyrics copied to clipboard.');
+    };
+  }
+
+  if (syncBtn) {
+    syncBtn.onclick = () => {
+      if ($('songTitle')) $('songTitle').value = title ? title.value : '';
+      if ($('style')) $('style').value = style ? style.value : '';
+      if ($('lyrics')) $('lyrics').value = lyrics ? lyrics.value : '';
+      if ($('planMode')) $('planMode').value = mode ? mode.value : 'full';
+      if ($('seed')) $('seed').value = seed ? seed.value : '831001';
+      if (lora && state.settings?.lora) {
+        state.settings.lora.path = lora.value;
+        if (loraStrength) state.settings.lora.strength = Number(loraStrength.value);
+        if (typeof syncLoras === 'function') syncLoras();
+      }
+      if (typeof save === 'function') save();
+      if (typeof switchView === 'function') switchView('create');
+      toast('Inspector proposal loaded into Studio Composer.');
+    };
+  }
+
+  if (renderBtn) {
+    renderBtn.onclick = async () => {
+      if (chatState.isGenerating) return;
+      renderBtn.disabled = true;
+      const originalHtml = renderBtn.innerHTML;
+      renderBtn.innerHTML = `<span class="status-dot pulse"></span> Queueing on GPU…`;
+
+      try {
+        const currentSong = getActiveChatContext();
+        const curTitle = title?.value.trim() || currentSong.title || 'Untitled Track';
+        const curStyle = style?.value.trim() || currentSong.style || '';
+        const curLyrics = lyrics?.value.trim() || currentSong.lyrics || '';
+        const curCot = mode?.value || currentSong.cot || 'full';
+        const curSeed = parseInt(seed?.value, 10) || Math.floor(Math.random() * (2**31 - 1));
+
+        if (lora && state.settings?.lora) {
+          state.settings.lora.path = lora.value;
+          if (loraStrength) state.settings.lora.strength = Number(loraStrength.value);
+        }
+
+        const jobPayload = {
+          title: curTitle,
+          mode: state.mode || 'create',
+          stage: 'audio',
+          request: {
+            style: curStyle,
+            lyrics: curLyrics,
+            cot: curCot,
+            seed: curSeed,
+            id: 'song'
+          },
+          settings: state.settings,
+          source_job: currentSong.source_job || ''
+        };
+
+        const job = await api('/api/generate', jobPayload);
+        const versionNum = chatState.versions.length + 1;
+        const newVersion = {
+          id: 'ver_' + Date.now(),
+          version_num: versionNum,
+          job_id: job.id,
+          title: curTitle,
+          style: curStyle,
+          lyrics: curLyrics,
+          cot: curCot,
+          seed: curSeed,
+          lora_path: lora?.value || '',
+          lora_strength: loraStrength ? Number(loraStrength.value) : 1.0,
+          producer_notes: 'Rendered directly from Track Inspector.',
+          created: Date.now(),
+          status: 'queued',
+          starred: false
+        };
+
+        chatState.versions.push(newVersion);
+        chatState.activeBaseVersionId = newVersion.id;
+
+        chatState.messages.push({
+          role: 'assistant',
+          content: `🚀 Triggered render on GPU for "${curTitle}" (v${versionNum}).`,
+          draft: {
+            title: curTitle,
+            style: curStyle,
+            lyrics: curLyrics,
+            cot: curCot,
+            seed: curSeed,
+            producer_notes: 'Track queued from Inspector.'
+          },
+          job_id: job.id,
+          timestamp: Date.now()
+        });
+
+        saveChatStorage();
+        renderChatMessages();
+        renderChatVersions();
+        updateChatBaseIndicator();
+        syncInspectorPanel(newVersion);
+
+        chatState.activeChatJobId = job.id;
+        state.activeId = job.id;
+        if (typeof poll === 'function') poll();
+        toast(`Version v${versionNum} queued for GPU rendering!`);
+
+      } catch (err) {
+        toast('Render error: ' + err.message, true);
+      } finally {
+        renderBtn.disabled = false;
+        renderBtn.innerHTML = originalHtml;
+      }
+    };
+  }
 }
 
 function bindChatUI() {
@@ -749,6 +992,8 @@ function bindChatUI() {
       }
     };
   });
+
+  bindInspectorUI();
 }
 
 // Global hook for polling loop: updates inline audio cards & version statuses

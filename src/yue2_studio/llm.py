@@ -245,9 +245,18 @@ def produce(payload):
         'cot': str(current_song.get('cot') or 'full'),
         'abc': str(current_song.get('abc') or '')
     }
+
+    # Discover locally available LoRAs so the producer is aware of them
+    available_loras = []
+    try:
+        from .loras import catalogue as get_loras
+        available_loras = [item.get('name') for item in get_loras().get('loras', []) if item.get('name')]
+    except Exception:
+        pass
     
     producer_input = {
         'current_song': context,
+        'available_loras': available_loras,
         'conversation_history': history[-10:],
         'user_request': message
     }
@@ -271,6 +280,7 @@ def produce(payload):
             'style': str(draft.get('style') or context['style'] or ''),
             'lyrics': str(draft.get('lyrics') or context['lyrics'] or ''),
             'cot': str(draft.get('cot') or context['cot'] or 'full'),
+            'lora': str(draft.get('lora') or ''),
             'producer_notes': str(draft.get('producer_notes') or draft.get('notes') or '')
         }
     except (ValueError, TypeError):
@@ -280,6 +290,7 @@ def produce(payload):
             'style': context['style'],
             'lyrics': context['lyrics'],
             'cot': context['cot'],
+            'lora': '',
             'producer_notes': 'Model returned raw text.'
         }
         result['warning'] = 'The model response was not strict JSON, but was captured as direct producer feedback.'

@@ -16,6 +16,10 @@ function syncLoras(){
     const surprise=$('surpriseLoraSelect');surprise.replaceChildren(...Array.from(select.options,option=>new Option(option.text,option.value)));
     surprise.value=current;surprise.disabled=false;
   }
+  if($('inspectorLora')){
+    const ins=$('inspectorLora');ins.replaceChildren(...Array.from(select.options,option=>new Option(option.text,option.value)));
+    ins.value=current;
+  }
   $('loraOptions').hidden=!current;
   $('loraStrength').value=selection.strength;$('loraStrengthValue').textContent=Number(selection.strength).toFixed(2);
   $('loraAutoTrigger').checked=selection.auto_trigger;
