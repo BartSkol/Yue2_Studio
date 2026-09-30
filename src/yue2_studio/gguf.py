@@ -30,12 +30,14 @@ def validate(settings, stage):
         if not (root/relative).is_file():
             raise ValueError('Missing GGUF model component: '+str(root/relative))
 
-
 def prepare(spec, directory):
     settings=spec['settings'];validate(settings,spec['stage']);cfg=settings['gguf'];request=spec['request']
     options={key:str(request[key]) for key in ('style','cot','seed')}
     options['num_inference_steps']=str(settings['generation']['ode_steps'])
-    if request.get('cfg_scale') is not None:options['cfg_scale']=str(request['cfg_scale'])
+    cfg_val = settings['generation'].get('cfg_scale') if settings.get('generation', {}).get('cfg_scale') is not None else request.get('cfg_scale')
+    if cfg_val is not None:
+        options['cfg_scale'] = str(cfg_val)
+        options['guidance_scale'] = str(cfg_val)
     for stage in ('abc','semantic'):
         options.update({stage+'_'+key:str(value) for key,value in settings[stage].items()})
     if request.get('abc'):

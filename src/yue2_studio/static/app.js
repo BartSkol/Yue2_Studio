@@ -97,12 +97,12 @@ const EXPERIMENTS={
   influence:{group:'generation',slider:'influenceSlider',output:'influenceValue',summary:'influenceSettings',levels:[
     {label:'Very loose',values:{cfg_scale:.85}},
     {label:'Loose',values:{cfg_scale:.95}},
-    {label:'Default',values:{cfg_scale:null}},
+    {label:'Default (Fast)',values:{cfg_scale:1.0}},
     {label:'Focused',values:{cfg_scale:1.05}},
     {label:'Very focused',values:{cfg_scale:1.15}}]}
 };
 function matchingExperimentLevel(experiment){return experiment.levels.findIndex(level=>Object.entries(level.values).every(([key,value])=>state.settings[experiment.group]?.[key]===value));}
-function experimentSummary(name,level){const v=level.values;if(name==='influence')return 'CFG: '+(v.cfg_scale===null?'Automatic (1.0, or 1.01 in Direct audio)':v.cfg_scale);return (name==='composition'?'Planner':'Audio tokens')+': temp '+v.temperature+' · top-p '+v.top_p+' · top-k '+v.top_k;}
+function experimentSummary(name,level){const v=level.values;if(name==='influence')return 'CFG: '+(v.cfg_scale===null||v.cfg_scale===1.0?'1.0 (Fast)':v.cfg_scale);return (name==='composition'?'Planner':'Audio tokens')+': temp '+v.temperature+' · top-p '+v.top_p+' · top-k '+v.top_k;}
 function updateExperimentalSliders(){if(!state.boot)return;for(const [name,experiment] of Object.entries(EXPERIMENTS)){const slider=$(experiment.slider);if(!slider)continue;const match=matchingExperimentLevel(experiment),level=experiment.levels[match<0?2:match],control=slider.closest('.experiment-control');if(match>=0)slider.value=match;$(experiment.output).textContent=match<0?'Custom advanced values':level.label;$(experiment.summary).textContent=match<0?'Open Advanced settings to review the custom values.':experimentSummary(name,level);control.classList.toggle('custom',match<0);const bypassed=state.settings.runtime?.backend==='audio.cpp'||(name==='composition'&&($('planMode').value==='off'||Boolean($('abc').value.trim())));slider.disabled=bypassed;control.classList.toggle('bypassed',bypassed);if(bypassed)$(experiment.output).textContent='Not used for this song';slider.setAttribute('aria-valuetext',$(experiment.output).textContent);}}
 function applyExperiment(name,index){const experiment=EXPERIMENTS[name];if(!experiment||!Number.isInteger(index)||!experiment.levels[index]||$(experiment.slider).disabled)return;const level=experiment.levels[index];Object.assign(state.settings[experiment.group],level.values);updateCounts();save();}
 function resetExperiments(){if(state.settings.runtime?.backend==='audio.cpp')return;for(const experiment of Object.values(EXPERIMENTS))Object.assign(state.settings[experiment.group],experiment.levels[2].values);updateCounts();save();toast('Experimental sliders reset to engine defaults.');}
