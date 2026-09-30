@@ -214,5 +214,14 @@
 @media(max-width:1200px){.chat-layout{grid-template-columns:240px minmax(0,1fr) 280px;gap:12px}}
 @media(max-width:980px){.chat-layout{grid-template-columns:1fr;height:auto}.chat-versions-sidebar{max-height:280px}.chat-inspector-panel{max-height:500px}.welcome-tips{grid-template-columns:1fr}}
 
+.draft-pending-actions{display:flex;align-items:center;gap:8px;margin-top:10px}
+.draft-render-btn{background:var(--accent)!important;color:var(--accent-ink,#111614)!important;font-weight:700!important;letter-spacing:.02em;box-shadow:0 2px 10px color-mix(in srgb,var(--accent) 35%,transparent);transition:all .2s ease;display:inline-flex;align-items:center;gap:6px}
+.draft-render-btn:hover{filter:brightness(1.12);box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 50%,transparent);transform:translateY(-1px)}
+.draft-render-btn:active{transform:translateY(0)}
+.draft-render-btn svg{width:14px;height:14px;fill:currentColor}
+.producer-quick-actions{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)}
+.message-draft-card{transition:border-color .2s,box-shadow .2s}
+.message-draft-card:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+
 
 

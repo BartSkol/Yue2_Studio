@@ -418,81 +418,205 @@ function renderChatMessages() {
     bubble.append(content);
 
     // If producer message has structured track draft / job
-    if (msg.role === 'assistant' && msg.draft) {
-      const draftCard = document.createElement('div');
-      draftCard.className = 'message-draft-card';
+    if (msg.role === 'assistant') {
+      const draft = msg.draft || (msg.job_id ? { title: 'Wygenerowany utwór' } : null);
+      if (draft) {
+        const draftCard = document.createElement('div');
+        draftCard.className = 'message-draft-card';
 
-      const draftHeader = document.createElement('div');
-      draftHeader.className = 'draft-card-header';
-      draftHeader.innerHTML = `
-        <span class="draft-pill">🎵 ${msg.draft.title || 'New Track'}</span>
-        <span class="draft-pill-mode">${msg.draft.cot === 'off' ? 'Direct Audio' : msg.draft.cot === 'melody' ? 'Melody' : 'Full Score'}</span>
-      `;
+        const draftHeader = document.createElement('div');
+        draftHeader.className = 'draft-card-header';
+        draftHeader.innerHTML = `
+          <span class="draft-pill">🎵 ${draft.title || 'Proponowany utwór'}</span>
+          <span class="draft-pill-mode">${draft.cot === 'off' ? 'Direct Audio' : draft.cot === 'melody' ? 'Melody' : 'Full Score'}</span>
+        `;
 
-      const draftStyle = document.createElement('div');
-      draftStyle.className = 'draft-style-tag';
-      draftStyle.textContent = msg.draft.style;
+        const draftStyle = document.createElement('div');
+        draftStyle.className = 'draft-style-tag';
+        draftStyle.textContent = draft.style || getActiveChatContext().style || 'Brak promptu stylu';
 
-      draftCard.append(draftHeader, draftStyle);
+        draftCard.append(draftHeader, draftStyle);
 
-      if (msg.draft.producer_notes) {
-        const notes = document.createElement('div');
-        notes.className = 'draft-notes-text';
-        notes.textContent = `💡 Producer Notes: ${msg.draft.producer_notes}`;
-        draftCard.append(notes);
-      }
+        if (draft.producer_notes) {
+          const notes = document.createElement('div');
+          notes.className = 'draft-notes-text';
+          notes.textContent = `💡 Notatki producenta: ${draft.producer_notes}`;
+          draftCard.append(notes);
+        }
 
-      // Inline expandable editor / inspector
-      const editDetails = document.createElement('details');
-      editDetails.className = 'draft-expand-details';
-      editDetails.innerHTML = `
-        <summary class="draft-expand-summary"><svg class="icon-s"><use href="#i-pencil"/></svg> <span>Inspect &amp; Edit Proposal</span></summary>
-        <div class="draft-edit-form">
-          <label class="field-label-s">Title</label>
-          <input type="text" class="draft-input-title" value="${(msg.draft.title || '').replace(/"/g, '&quot;')}" placeholder="Track title">
-          <label class="field-label-s">Musical Style Prompt</label>
-          <textarea class="draft-input-style" rows="2" placeholder="Style prompt">${(msg.draft.style || '').replace(/</g, '&lt;')}</textarea>
-          <label class="field-label-s">Lyrics</label>
-          <textarea class="draft-input-lyrics" rows="4" placeholder="Lyrics">${(msg.draft.lyrics || '').replace(/</g, '&lt;')}</textarea>
-        </div>
-      `;
-      const titleInput = editDetails.querySelector('.draft-input-title');
-      const styleInput = editDetails.querySelector('.draft-input-style');
-      const lyricsInput = editDetails.querySelector('.draft-input-lyrics');
-      if (titleInput) titleInput.oninput = () => { msg.draft.title = titleInput.value; saveChatStorage(); };
-      if (styleInput) styleInput.oninput = () => { msg.draft.style = styleInput.value; draftStyle.textContent = styleInput.value; saveChatStorage(); };
-      if (lyricsInput) lyricsInput.oninput = () => { msg.draft.lyrics = lyricsInput.value; saveChatStorage(); };
-      draftCard.append(editDetails);
+        // Inline expandable editor / inspector
+        const editDetails = document.createElement('details');
+        editDetails.className = 'draft-expand-details';
+        editDetails.innerHTML = `
+          <summary class="draft-expand-summary"><svg class="icon-s"><use href="#i-pencil"/></svg> <span>Podgląd i edycja propozycji</span></summary>
+          <div class="draft-edit-form">
+            <label class="field-label-s">Tytuł utworu</label>
+            <input type="text" class="draft-input-title" value="${(draft.title || '').replace(/"/g, '&quot;')}" placeholder="Tytuł utworu">
+            <label class="field-label-s">Styl muzyczny (Prompt)</label>
+            <textarea class="draft-input-style" rows="2" placeholder="Styl utworu">${(draft.style || '').replace(/</g, '&lt;')}</textarea>
+            <label class="field-label-s">Tekst piosenki (Lyrics)</label>
+            <textarea class="draft-input-lyrics" rows="4" placeholder="Tekst">${(draft.lyrics || '').replace(/</g, '&lt;')}</textarea>
+          </div>
+        `;
+        const titleInput = editDetails.querySelector('.draft-input-title');
+        const styleInput = editDetails.querySelector('.draft-input-style');
+        const lyricsInput = editDetails.querySelector('.draft-input-lyrics');
+        if (titleInput) titleInput.oninput = () => { draft.title = titleInput.value; saveChatStorage(); };
+        if (styleInput) styleInput.oninput = () => { draft.style = styleInput.value; draftStyle.textContent = styleInput.value; saveChatStorage(); };
+        if (lyricsInput) lyricsInput.oninput = () => { draft.lyrics = lyricsInput.value; saveChatStorage(); };
+        draftCard.append(editDetails);
 
-      // Live Audio Player / Progress inside bubble
-      if (msg.job_id) {
-        const audioContainer = document.createElement('div');
-        audioContainer.className = 'inline-audio-container';
-        audioContainer.id = `chat_audio_${msg.job_id}`;
-        renderInlineAudioCard(audioContainer, msg.job_id, msg.draft);
-        draftCard.append(audioContainer);
-      } else if (msg.draft.style) {
-        const draftActions = document.createElement('div');
-        draftActions.className = 'draft-pending-actions row gap-s wrap';
-        draftActions.style.marginTop = '10px';
+        // Live Audio Player / Progress inside bubble
+        if (msg.job_id) {
+          const audioContainer = document.createElement('div');
+          audioContainer.className = 'inline-audio-container';
+          audioContainer.id = `chat_audio_${msg.job_id}`;
+          renderInlineAudioCard(audioContainer, msg.job_id, draft);
+          draftCard.append(audioContainer);
+        } else {
+          const draftActions = document.createElement('div');
+          draftActions.className = 'draft-pending-actions row gap-s wrap';
+          draftActions.style.marginTop = '10px';
 
-        const renderBtn = document.createElement('button');
-        renderBtn.type = 'button';
-        renderBtn.className = 'button primary small';
-        renderBtn.innerHTML = `<svg><use href="#i-arrow"/></svg> Render this track`;
-        renderBtn.onclick = async () => {
-          renderBtn.disabled = true;
-          renderBtn.textContent = 'Queueing on GPU…';
+          const renderBtn = document.createElement('button');
+          renderBtn.type = 'button';
+          renderBtn.className = 'button primary small draft-render-btn';
+          renderBtn.innerHTML = `<svg><use href="#i-play"/></svg> <span><strong>Generuj utwór (GPU)</strong></span>`;
+          renderBtn.title = 'Uruchom natychmiastowe renderowanie bezstratnego audio na GPU';
+          renderBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (chatState.isGenerating) return;
+            renderBtn.disabled = true;
+            renderBtn.innerHTML = `<span class="status-dot pulse"></span> Kolejkowanie GPU…`;
+            try {
+              const currentSong = getActiveChatContext();
+              const jobPayload = {
+                title: draft.title || currentSong.title || 'Untitled track',
+                mode: state.mode || 'create',
+                stage: 'audio',
+                request: {
+                  style: draft.style || currentSong.style || '',
+                  lyrics: draft.lyrics || currentSong.lyrics || '',
+                  cot: draft.cot || currentSong.cot || 'full',
+                  seed: Math.floor(Math.random() * (2**31 - 1)),
+                  id: 'song'
+                },
+                settings: state.settings,
+                source_job: currentSong.source_job || ''
+              };
+              const job = await api('/api/generate', jobPayload);
+              msg.job_id = job.id;
+
+              const versionNum = chatState.versions.length + 1;
+              const newVersion = {
+                id: 'ver_' + Date.now(),
+                version_num: versionNum,
+                job_id: job.id,
+                title: jobPayload.title,
+                style: jobPayload.request.style,
+                lyrics: jobPayload.request.lyrics,
+                cot: jobPayload.request.cot,
+                seed: jobPayload.request.seed,
+                producer_notes: draft.producer_notes || 'Wygenerowano z propozycji czatu.',
+                created: Date.now(),
+                status: 'queued',
+                starred: false
+              };
+              chatState.versions.push(newVersion);
+              chatState.activeBaseVersionId = newVersion.id;
+
+              saveChatStorage();
+              renderChatMessages();
+              renderChatVersions();
+              updateChatBaseIndicator();
+              syncInspectorPanel(newVersion);
+              if (typeof poll === 'function') poll();
+              toast('Utwór przekazany do renderowania na GPU!');
+            } catch (err) {
+              toast('Błąd renderowania: ' + err.message, true);
+              renderBtn.disabled = false;
+              renderBtn.innerHTML = `<svg><use href="#i-play"/></svg> <span><strong>Generuj utwór (GPU)</strong></span>`;
+            }
+          };
+
+          const inspectorBtn = document.createElement('button');
+          inspectorBtn.type = 'button';
+          inspectorBtn.className = 'button subtle small';
+          inspectorBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspektor`;
+          inspectorBtn.title = 'Otwórz propozycję w prawym panelu roboczym (Inspektor)';
+          inspectorBtn.onclick = (e) => {
+            e.stopPropagation();
+            syncInspectorPanel(draft);
+            const p = $('chatInspectorPanel');
+            if (p) {
+              p.scrollIntoView({ behavior: 'smooth' });
+              p.style.borderColor = 'var(--accent)';
+              setTimeout(() => { p.style.borderColor = ''; }, 1200);
+            }
+            toast('Propozycja załadowana do Inspektora.');
+          };
+
+          const loadBtn = document.createElement('button');
+          loadBtn.type = 'button';
+          loadBtn.className = 'button subtle small';
+          loadBtn.innerHTML = `<svg><use href="#i-upload"/></svg> Do Studia`;
+          loadBtn.title = 'Załaduj do głównego edytora Studio Composer';
+          loadBtn.onclick = (e) => {
+            e.stopPropagation();
+            if ($('songTitle')) $('songTitle').value = draft.title || '';
+            if ($('style')) $('style').value = draft.style || '';
+            if ($('lyrics')) $('lyrics').value = draft.lyrics || '';
+            if ($('planMode')) $('planMode').value = draft.cot || 'full';
+            if (typeof save === 'function') save();
+            if (typeof switchView === 'function') switchView('create');
+            toast('Propozycja załadowana do Studio Composer.');
+          };
+
+          const copyPromptBtn = document.createElement('button');
+          copyPromptBtn.type = 'button';
+          copyPromptBtn.className = 'button quiet small';
+          copyPromptBtn.textContent = 'Kopiuj prompt';
+          copyPromptBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await navigator.clipboard.writeText(draft.style || '');
+            toast('Prompt stylu skopiowany do schowka.');
+          };
+
+          draftActions.append(renderBtn, inspectorBtn, loadBtn, copyPromptBtn);
+          draftCard.append(draftActions);
+        }
+
+        draftCard.style.cursor = 'pointer';
+        draftCard.onclick = (e) => {
+          if (e.target.closest('button, input, textarea, a, summary, details')) return;
+          syncInspectorPanel(draft);
+          toast('Załadowano propozycję do Inspektora.');
+        };
+
+        bubble.append(draftCard);
+      } else {
+        // Plain text assistant reply without structured draft: add quick action toolbar
+        const quickRow = document.createElement('div');
+        quickRow.className = 'producer-quick-actions row gap-s wrap';
+        quickRow.style.marginTop = '8px';
+
+        const quickGenBtn = document.createElement('button');
+        quickGenBtn.type = 'button';
+        quickGenBtn.className = 'button primary small draft-render-btn';
+        quickGenBtn.innerHTML = `<svg><use href="#i-play"/></svg> <span><strong>Generuj utwór (GPU)</strong></span>`;
+        quickGenBtn.onclick = async () => {
+          quickGenBtn.disabled = true;
+          quickGenBtn.innerHTML = `<span class="status-dot pulse"></span> Kolejkowanie GPU…`;
           try {
             const currentSong = getActiveChatContext();
             const jobPayload = {
-              title: msg.draft.title || currentSong.title || 'Untitled track',
+              title: currentSong.title || 'Studio track',
               mode: state.mode || 'create',
               stage: 'audio',
               request: {
-                style: msg.draft.style,
-                lyrics: msg.draft.lyrics || '',
-                cot: msg.draft.cot || 'full',
+                style: currentSong.style || '',
+                lyrics: currentSong.lyrics || '',
+                cot: currentSong.cot || 'full',
                 seed: Math.floor(Math.random() * (2**31 - 1)),
                 id: 'song'
               },
@@ -504,65 +628,32 @@ function renderChatMessages() {
             saveChatStorage();
             renderChatMessages();
             if (typeof poll === 'function') poll();
-            toast('Track queued for GPU rendering!');
+            toast('Utwór przekazany do renderowania na GPU!');
           } catch (err) {
-            toast('Render error: ' + err.message, true);
-            renderBtn.disabled = false;
-            renderBtn.innerHTML = `<svg><use href="#i-arrow"/></svg> Render this track`;
+            toast('Błąd renderowania: ' + err.message, true);
+            quickGenBtn.disabled = false;
+            quickGenBtn.innerHTML = `<svg><use href="#i-play"/></svg> <span><strong>Generuj utwór (GPU)</strong></span>`;
           }
         };
 
-        const inspectorBtn = document.createElement('button');
-        inspectorBtn.type = 'button';
-        inspectorBtn.className = 'button subtle small';
-        inspectorBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspector`;
-        inspectorBtn.title = 'Open proposal in Right-Hand Workstation Inspector';
-        inspectorBtn.onclick = () => {
-          syncInspectorPanel(msg.draft);
+        const quickInspBtn = document.createElement('button');
+        quickInspBtn.type = 'button';
+        quickInspBtn.className = 'button subtle small';
+        quickInspBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspektor`;
+        quickInspBtn.onclick = () => {
+          syncInspectorPanel();
           const p = $('chatInspectorPanel');
           if (p) {
             p.scrollIntoView({ behavior: 'smooth' });
             p.style.borderColor = 'var(--accent)';
             setTimeout(() => { p.style.borderColor = ''; }, 1200);
           }
-          toast('Proposal opened in Track Inspector.');
+          toast('Otwarto Inspektor utworu.');
         };
 
-        const loadBtn = document.createElement('button');
-        loadBtn.type = 'button';
-        loadBtn.className = 'button subtle small';
-        loadBtn.innerHTML = `<svg><use href="#i-upload"/></svg> Load to Composer`;
-        loadBtn.onclick = () => {
-          if ($('songTitle')) $('songTitle').value = msg.draft.title || '';
-          if ($('style')) $('style').value = msg.draft.style || '';
-          if ($('lyrics')) $('lyrics').value = msg.draft.lyrics || '';
-          if ($('planMode')) $('planMode').value = msg.draft.cot || 'full';
-          if (typeof save === 'function') save();
-          if (typeof switchView === 'function') switchView('create');
-          toast('Draft loaded into Studio Composer.');
-        };
-
-        const copyPromptBtn = document.createElement('button');
-        copyPromptBtn.type = 'button';
-        copyPromptBtn.className = 'button quiet small';
-        copyPromptBtn.textContent = 'Copy Prompt';
-        copyPromptBtn.onclick = async () => {
-          await navigator.clipboard.writeText(msg.draft.style || '');
-          toast('Style prompt copied to clipboard.');
-        };
-
-        draftActions.append(renderBtn, inspectorBtn, loadBtn, copyPromptBtn);
-        draftCard.append(draftActions);
+        quickRow.append(quickGenBtn, quickInspBtn);
+        bubble.append(quickRow);
       }
-
-      draftCard.style.cursor = 'pointer';
-      draftCard.onclick = (e) => {
-        if (e.target.closest('button, input, textarea, a, summary, details')) return;
-        syncInspectorPanel(msg.draft);
-        toast('Loaded proposal into Track Inspector.');
-      };
-
-      bubble.append(draftCard);
     }
 
     row.append(bubble);
@@ -705,7 +796,101 @@ function renderInlineAudioCard(container, jobId, draft) {
       }
     };
 
-    actionRow.append(starBtn, dlFlac, dlWav, genCoverBtn, toStudio);
+    const regenBtn = document.createElement('button');
+    regenBtn.type = 'button';
+    regenBtn.className = 'button subtle small';
+    regenBtn.innerHTML = `<svg><use href="#i-refresh"/></svg> Regeneruj`;
+    regenBtn.title = 'Wygeneruj nową wersję z innym ziarnem GPU';
+    regenBtn.onclick = async () => {
+      regenBtn.disabled = true;
+      regenBtn.innerHTML = `<span class="status-dot pulse"></span> Kolejkowanie…`;
+      try {
+        const currentSong = getActiveChatContext();
+        const jobPayload = {
+          title: job.title || currentSong.title || 'Untitled track',
+          mode: state.mode || 'create',
+          stage: 'audio',
+          request: {
+            style: job.input?.request?.style || currentSong.style || '',
+            lyrics: job.input?.request?.lyrics || currentSong.lyrics || '',
+            cot: job.input?.request?.cot || 'full',
+            seed: Math.floor(Math.random() * (2**31 - 1)),
+            id: 'song'
+          },
+          settings: state.settings,
+          source_job: jobId
+        };
+        const newJob = await api('/api/generate', jobPayload);
+        const versionNum = chatState.versions.length + 1;
+        const newVersion = {
+          id: 'ver_' + Date.now(),
+          version_num: versionNum,
+          job_id: newJob.id,
+          title: jobPayload.title,
+          style: jobPayload.request.style,
+          lyrics: jobPayload.request.lyrics,
+          cot: jobPayload.request.cot,
+          seed: jobPayload.request.seed,
+          producer_notes: 'Regeneracja z nowym ziarnem.',
+          created: Date.now(),
+          status: 'queued',
+          starred: false
+        };
+        chatState.versions.push(newVersion);
+        chatState.activeBaseVersionId = newVersion.id;
+        chatState.messages.push({
+          role: 'assistant',
+          content: `🔁 Rozpoczęto nową wersję "${jobPayload.title}" (v${versionNum}) z nowym ziarnem GPU.`,
+          draft: {
+            title: jobPayload.title,
+            style: jobPayload.request.style,
+            lyrics: jobPayload.request.lyrics,
+            cot: jobPayload.request.cot,
+            seed: jobPayload.request.seed
+          },
+          job_id: newJob.id,
+          timestamp: Date.now()
+        });
+        saveChatStorage();
+        renderChatMessages();
+        renderChatVersions();
+        updateChatBaseIndicator();
+        syncInspectorPanel(newVersion);
+        if (typeof poll === 'function') poll();
+        toast(`Wersja v${versionNum} zakolejkowana na GPU!`);
+      } catch (err) {
+        toast('Błąd regeneracji: ' + err.message, true);
+        regenBtn.disabled = false;
+        regenBtn.innerHTML = `<svg><use href="#i-refresh"/></svg> Regeneruj`;
+      }
+    };
+
+    const inspBtn = document.createElement('button');
+    inspBtn.type = 'button';
+    inspBtn.className = 'button subtle small';
+    inspBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspektor`;
+    inspBtn.title = 'Otwórz ten utwór w Inspektorze';
+    inspBtn.onclick = () => {
+      const v = chatState.versions.find(item => item.job_id === jobId);
+      if (v) syncInspectorPanel(v);
+      else syncInspectorPanel({
+        title: job.title || '',
+        style: job.input?.request?.style || '',
+        lyrics: job.input?.request?.lyrics || '',
+        cot: job.input?.request?.cot || 'full',
+        seed: job.input?.request?.seed || null,
+        job_id: jobId
+      });
+      const p = $('chatInspectorPanel');
+      if (p) {
+        p.scrollIntoView({ behavior: 'smooth' });
+        p.style.borderColor = 'var(--accent)';
+        setTimeout(() => { p.style.borderColor = ''; }, 1200);
+      }
+      toast('Utwór otwarty w Inspektorze.');
+    };
+
+    actionRow.append(starBtn, dlFlac, dlWav, genCoverBtn, regenBtn, inspBtn, toStudio);
     completeBox.append(coverArt, player, actionRow);
     container.append(completeBox);
   } else if (isFailed) {
