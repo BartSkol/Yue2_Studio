@@ -360,6 +360,63 @@ function renderChatMessages() {
         audioContainer.id = `chat_audio_${msg.job_id}`;
         renderInlineAudioCard(audioContainer, msg.job_id, msg.draft);
         draftCard.append(audioContainer);
+      } else if (msg.draft.style) {
+        const draftActions = document.createElement('div');
+        draftActions.className = 'draft-pending-actions row gap-s';
+        draftActions.style.marginTop = '10px';
+
+        const renderBtn = document.createElement('button');
+        renderBtn.type = 'button';
+        renderBtn.className = 'button primary small';
+        renderBtn.innerHTML = `<svg><use href="#i-arrow"/></svg> Render this track`;
+        renderBtn.onclick = async () => {
+          renderBtn.disabled = true;
+          renderBtn.textContent = 'Queueing on GPU…';
+          try {
+            const currentSong = getActiveChatContext();
+            const jobPayload = {
+              title: msg.draft.title || currentSong.title || 'Untitled track',
+              mode: state.mode || 'create',
+              stage: 'audio',
+              request: {
+                style: msg.draft.style,
+                lyrics: msg.draft.lyrics || '',
+                cot: msg.draft.cot || 'full',
+                seed: Math.floor(Math.random() * (2**31 - 1)),
+                id: 'song'
+              },
+              settings: state.settings,
+              source_job: currentSong.source_job || ''
+            };
+            const job = await api('/api/generate', jobPayload);
+            msg.job_id = job.id;
+            saveChatStorage();
+            renderChatMessages();
+            if (typeof poll === 'function') poll();
+            toast('Track queued for GPU rendering!');
+          } catch (err) {
+            toast('Render error: ' + err.message, true);
+            renderBtn.disabled = false;
+            renderBtn.innerHTML = `<svg><use href="#i-arrow"/></svg> Render this track`;
+          }
+        };
+
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'button subtle small';
+        loadBtn.innerHTML = `<svg><use href="#i-upload"/></svg> Load to Composer`;
+        loadBtn.onclick = () => {
+          if ($('songTitle')) $('songTitle').value = msg.draft.title || '';
+          if ($('style')) $('style').value = msg.draft.style || '';
+          if ($('lyrics')) $('lyrics').value = msg.draft.lyrics || '';
+          if ($('planMode')) $('planMode').value = msg.draft.cot || 'full';
+          if (typeof save === 'function') save();
+          if (typeof switchView === 'function') switchView('create');
+          toast('Draft loaded into Studio Composer.');
+        };
+
+        draftActions.append(renderBtn, loadBtn);
+        draftCard.append(draftActions);
       }
 
       bubble.append(draftCard);

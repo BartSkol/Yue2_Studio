@@ -84,7 +84,8 @@ class Handler(BaseHTTPRequestHandler):
     def end_headers(self):
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','no-referrer')
-        self.send_header('Cache-Control','no-store')
+        if not hasattr(self, '_headers_buffer') or not any(h.lower().startswith(b'cache-control:') for h in self._headers_buffer):
+            self.send_header('Cache-Control','no-store')
         self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://api.audius.co https://*.audius.co; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         super().end_headers()
 
@@ -431,6 +432,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Accept-Ranges','bytes')
         if status==206:
             self.send_header('Content-Range',f'bytes {start}-{end}/{size}')
+        if path.suffix.lower() in ('.flac','.wav','.mp3','.ogg'):
+            self.send_header('Cache-Control','public, max-age=86400')
+        elif path.suffix.lower() in ('.js','.css','.svg','.png','.jpg'):
+            self.send_header('Cache-Control','public, max-age=3600')
         if download:
             self.send_header('Content-Disposition',f'attachment; filename="{path.name}"')
         self.end_headers()
@@ -438,7 +443,7 @@ class Handler(BaseHTTPRequestHandler):
             handle.seek(start)
             remaining=end-start+1
             while remaining>0:
-                block=handle.read(min(65536,remaining))
+                block=handle.read(min(262144,remaining))
                 if not block:
                     break
                 self.wfile.write(block)
