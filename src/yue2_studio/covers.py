@@ -92,12 +92,30 @@ def generate_cover(payload: dict) -> dict:
     result_dir.mkdir(parents=True, exist_ok=True)
     target_cover_path = result_dir / 'cover.jpg'
 
+    # Resilient compatibility shim for huggingface_hub / diffusers version mismatches
+    try:
+        import huggingface_hub
+        if not hasattr(huggingface_hub, 'get_cached_repo_tree'):
+            for mod_name in ('huggingface_hub.file_download', 'huggingface_hub._snapshot_download', 'huggingface_hub.hf_api'):
+                try:
+                    mod = __import__(mod_name, fromlist=['get_cached_repo_tree'])
+                    if hasattr(mod, 'get_cached_repo_tree'):
+                        huggingface_hub.get_cached_repo_tree = getattr(mod, 'get_cached_repo_tree')
+                        break
+                except Exception:
+                    pass
+            if not hasattr(huggingface_hub, 'get_cached_repo_tree'):
+                huggingface_hub.get_cached_repo_tree = lambda *args, **kwargs: None
+    except Exception:
+        pass
+
     import torch
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     image = None
     engine_used = 'z_image_turbo'
+    pipe = None
     
     try:
         from diffusers import DiffusionPipeline
@@ -123,30 +141,33 @@ def generate_cover(payload: dict) -> dict:
             engine_used = 'Tongyi-MAI/Z-Image-Turbo'
         except Exception as z_err:
             # 2. Fallback to SDXL-Turbo / Fast Diffusers Pipeline
-            from diffusers import AutoPipelineForText2Image
-            pipe = AutoPipelineForText2Image.from_pretrained(
-                "stabilityai/sdxl-turbo",
-                torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
-                variant="fp16" if device == 'cuda' else None
-            )
-            pipe.to(device)
-            gen = torch.Generator(device=device).manual_seed(int(seed)) if seed is not None else None
-            result = pipe(
-                prompt=prompt,
-                num_inference_steps=2,
-                guidance_scale=0.0,
-                generator=gen,
-                width=512,
-                height=512
-            )
-            image = result.images[0]
-            engine_used = 'stabilityai/sdxl-turbo (fast fallback)'
+            try:
+                from diffusers import AutoPipelineForText2Image
+                pipe = AutoPipelineForText2Image.from_pretrained(
+                    "stabilityai/sdxl-turbo",
+                    torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
+                    variant="fp16" if device == 'cuda' else None
+                )
+                pipe.to(device)
+                gen = torch.Generator(device=device).manual_seed(int(seed)) if seed is not None else None
+                result = pipe(
+                    prompt=prompt,
+                    num_inference_steps=2,
+                    guidance_scale=0.0,
+                    generator=gen,
+                    width=512,
+                    height=512
+                )
+                image = result.images[0]
+                engine_used = 'stabilityai/sdxl-turbo (fast fallback)'
+            except Exception as sdxl_err:
+                raise RuntimeError(f"Image generator models failed to load ({z_err}; {sdxl_err})")
 
-    except ImportError:
-        raise ValueError('The "diffusers" and "torch" packages are required for album cover generation. Please install diffusers.')
+    except ImportError as imp_err:
+        raise ValueError(f'The "diffusers" and "torch" packages are required for album cover generation: {imp_err}')
     finally:
         # Guarantee VRAM cleanup for music generation
-        if 'pipe' in locals():
+        if pipe is not None:
             del pipe
         gc.collect()
         if torch.cuda.is_available():

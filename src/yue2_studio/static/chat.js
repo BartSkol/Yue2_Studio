@@ -61,6 +61,20 @@ function syncInspectorPanel(data) {
   if ($('inspectorLoraStrength')) $('inspectorLoraStrength').value = strength;
   if ($('inspectorLoraVal')) $('inspectorLoraVal').textContent = Number(strength).toFixed(2);
 
+  // Sync advanced generation tuning
+  if ($('inspectorOdeSteps') && state.settings?.generation?.ode_steps) {
+    $('inspectorOdeSteps').value = String(state.settings.generation.ode_steps);
+  }
+  if ($('inspectorTemperature') && state.settings?.generation?.temperature) {
+    $('inspectorTemperature').value = Number(state.settings.generation.temperature);
+  }
+  if ($('inspectorTopP') && state.settings?.generation?.top_p) {
+    $('inspectorTopP').value = Number(state.settings.generation.top_p);
+  }
+  if ($('inspectorCfgScale') && state.settings?.generation?.cfg_scale) {
+    $('inspectorCfgScale').value = Number(state.settings.generation.cfg_scale);
+  }
+
   const coverImg = $('inspectorCoverImg');
   const coverPl = $('inspectorCoverPlaceholder');
   const coverPromptInput = $('inspectorCoverPrompt');
@@ -72,13 +86,19 @@ function syncInspectorPanel(data) {
   const coverUrl = data.cover_url || (data.job_id ? `/artifacts/${data.job_id}/result/cover.jpg` : null);
   if (coverImg && coverPl) {
     if (coverUrl) {
-      coverImg.src = coverUrl;
-      coverImg.hidden = false;
-      coverPl.hidden = true;
-      coverImg.onerror = () => {
+      coverImg.hidden = true;
+      coverPl.hidden = false;
+      const testImg = new Image();
+      testImg.onload = () => {
+        coverImg.src = coverUrl;
+        coverImg.hidden = false;
+        coverPl.hidden = true;
+      };
+      testImg.onerror = () => {
         coverImg.hidden = true;
         coverPl.hidden = false;
       };
+      testImg.src = coverUrl;
     } else {
       coverImg.hidden = true;
       coverPl.hidden = false;
@@ -235,6 +255,7 @@ function renderChatVersions() {
       coverThumb.className = 'version-cover-thumb';
       coverThumb.src = v.cover_url || `/artifacts/${v.job_id}/result/cover.jpg`;
       coverThumb.alt = 'Cover';
+      coverThumb.onload = () => { coverThumb.style.display = 'block'; };
       coverThumb.onerror = () => coverThumb.remove();
       bodyRow.append(coverThumb);
     }
@@ -261,26 +282,53 @@ function renderChatVersions() {
     const actions = document.createElement('div');
     actions.className = 'version-card-actions';
 
-    const infoBtn = document.createElement('button');
-    infoBtn.type = 'button';
-    infoBtn.className = 'button quiet small';
-    infoBtn.innerHTML = `<svg><use href="#i-info"/></svg> Details`;
-    infoBtn.onclick = () => showVersionInfoModal(v);
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'button subtle small';
+    settingsBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Settings`;
+    settingsBtn.title = 'Open track settings in Inspector';
+    settingsBtn.onclick = (e) => {
+      e.stopPropagation();
+      syncInspectorPanel(v);
+      const p = $('chatInspectorPanel');
+      if (p) {
+        p.scrollIntoView({ behavior: 'smooth' });
+        p.style.borderColor = 'var(--accent)';
+        setTimeout(() => { p.style.borderColor = ''; }, 1200);
+      }
+      toast(`Version v${v.version_num} loaded into Inspector Settings.`);
+    };
 
     const baseBtn = document.createElement('button');
     baseBtn.type = 'button';
     baseBtn.className = `button ${isBase ? 'primary' : 'subtle'} small`;
     baseBtn.innerHTML = isBase ? `<svg><use href="#i-check"/></svg> Active Base` : `<svg><use href="#i-refresh"/></svg> Use as Base`;
-    baseBtn.onclick = () => setChatBaseVersion(isBase ? null : v.id);
+    baseBtn.onclick = (e) => {
+      e.stopPropagation();
+      setChatBaseVersion(isBase ? null : v.id);
+    };
 
     const loadBtn = document.createElement('button');
     loadBtn.type = 'button';
-    loadBtn.className = 'button subtle small';
-    loadBtn.innerHTML = `<svg><use href="#i-upload"/></svg> To Studio`;
-    loadBtn.title = 'Load this song version into Studio Composer';
-    loadBtn.onclick = () => loadVersionIntoComposer(v);
+    loadBtn.className = 'button quiet small';
+    loadBtn.innerHTML = `<svg><use href="#i-upload"/></svg> Composer`;
+    loadBtn.title = 'Load this song version into main Studio Composer';
+    loadBtn.onclick = (e) => {
+      e.stopPropagation();
+      loadVersionIntoComposer(v);
+    };
 
-    actions.append(infoBtn, baseBtn, loadBtn);
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'button quiet small';
+    infoBtn.innerHTML = `<svg><use href="#i-info"/></svg>`;
+    infoBtn.title = 'View prompt details';
+    infoBtn.onclick = (e) => {
+      e.stopPropagation();
+      showVersionInfoModal(v);
+    };
+
+    actions.append(settingsBtn, baseBtn, loadBtn, infoBtn);
 
     card.append(header, bodyRow);
     if (audioElem) card.append(audioElem);
@@ -1124,6 +1172,74 @@ function bindInspectorUI() {
     };
   }
 
+  // Quick style chips inside inspector
+  document.querySelectorAll('.inspector-chip[data-chip]').forEach(chip => {
+    chip.onclick = () => {
+      if (style) {
+        const val = chip.dataset.chip;
+        if (!style.value.trim()) style.value = val;
+        else if (!style.value.includes(val)) style.value += ', ' + val;
+        updateActiveVersionDraft();
+        toast('Dodano tag stylu do Inspektora.');
+      }
+    };
+  });
+
+  // Quick lyric section tags inside inspector
+  document.querySelectorAll('.inspector-tag-btn[data-tag]').forEach(btn => {
+    btn.onclick = () => {
+      if (lyrics) {
+        const tag = '[' + btn.dataset.tag + ']\n';
+        const start = lyrics.selectionStart, end = lyrics.selectionEnd;
+        const before = lyrics.value.slice(0, start), after = lyrics.value.slice(end);
+        const prefix = before && !before.endsWith('\n') ? '\n\n' : '';
+        lyrics.value = before + prefix + tag + after;
+        lyrics.focus();
+        lyrics.setSelectionRange(start + prefix.length + tag.length, start + prefix.length + tag.length);
+        updateActiveVersionDraft();
+      }
+    };
+  });
+
+  // Advanced generation tuning controls
+  const odeSelect = $('inspectorOdeSteps');
+  const tempInput = $('inspectorTemperature');
+  const topPInput = $('inspectorTopP');
+  const cfgInput = $('inspectorCfgScale');
+
+  if (odeSelect) {
+    odeSelect.onchange = () => {
+      if (state.settings?.generation) {
+        state.settings.generation.ode_steps = Number(odeSelect.value);
+        if (typeof save === 'function') save();
+      }
+    };
+  }
+  if (tempInput) {
+    tempInput.oninput = () => {
+      if (state.settings?.generation) {
+        state.settings.generation.temperature = Number(tempInput.value);
+        if (typeof save === 'function') save();
+      }
+    };
+  }
+  if (topPInput) {
+    topPInput.oninput = () => {
+      if (state.settings?.generation) {
+        state.settings.generation.top_p = Number(topPInput.value);
+        if (typeof save === 'function') save();
+      }
+    };
+  }
+  if (cfgInput) {
+    cfgInput.oninput = () => {
+      if (state.settings?.generation) {
+        state.settings.generation.cfg_scale = Number(cfgInput.value);
+        if (typeof save === 'function') save();
+      }
+    };
+  }
+
   const genCoverBtn = $('inspectorGenerateCover');
   const coverImg = $('inspectorCoverImg');
   const coverPl = $('inspectorCoverPlaceholder');
@@ -1379,4 +1495,49 @@ window.updateChatJobStatuses = function() {
       if (el) renderInlineAudioCard(el, m.job_id, m.draft);
     }
   });
+};
+
+// Global bridge function for Song Library to load any song into AI Producer chat
+window.loadSongIntoChat = function(job) {
+  if (!job) return;
+  const versionNum = chatState.versions.length + 1;
+  const newVersion = {
+    id: 'ver_' + Date.now(),
+    version_num: versionNum,
+    job_id: job.id,
+    title: job.title || `Library Song v${versionNum}`,
+    style: job.input?.request?.style || '',
+    lyrics: job.input?.request?.lyrics || '',
+    cot: job.input?.request?.cot || 'full',
+    seed: job.input?.request?.seed || null,
+    producer_notes: `Załadowano utwór "${job.title || 'Untitled'}" z biblioteki jako bazę do pracy z AI Producerem.`,
+    created: Date.now(),
+    status: job.status || 'complete',
+    starred: Boolean(job.starred)
+  };
+  chatState.versions.push(newVersion);
+  chatState.activeBaseVersionId = newVersion.id;
+
+  chatState.messages.push({
+    role: 'assistant',
+    content: `🎵 Załadowałem utwór **"${newVersion.title}"** z biblioteki. Możemy teraz wspólnie nad nim pracować, zmieniać tekst, prompt stylu, podmieniać LoRA lub renderować kolejne wersje!`,
+    draft: {
+      title: newVersion.title,
+      style: newVersion.style,
+      lyrics: newVersion.lyrics,
+      cot: newVersion.cot,
+      seed: newVersion.seed,
+      producer_notes: newVersion.producer_notes
+    },
+    job_id: job.id,
+    timestamp: Date.now()
+  });
+
+  saveChatStorage();
+  renderChatMessages();
+  renderChatVersions();
+  updateChatBaseIndicator();
+  syncInspectorPanel(newVersion);
+  if (typeof switchView === 'function') switchView('chat');
+  toast(`Utwór "${job.title}" załadowany do czatu z AI Producerem!`);
 };
