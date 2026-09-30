@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const clone = value => JSON.parse(JSON.stringify(value));
-const state = {boot:null,settings:{},mode:'create',upload:null,sourceJob:'',jobs:[],view:'create',activeId:null,runId:null,connection:{provider:'openai',model:'',max_tokens:4096,timeout:360,context_length:32768,temperature:null},connections:{},draft:null,settingsSnapshot:null};
+const state = {boot:null,settings:{},mode:'create',upload:null,sourceJob:'',jobs:[],view:'create',activeId:null,runId:null,connection:{provider:'ollama',model:'qwen2.5:3b',base_url:'http://127.0.0.1:11434',max_tokens:4096,timeout:360,context_length:32768,temperature:null},connections:{},draft:null,settingsSnapshot:null};
 let saveTimer,toastTimer,polling=false,modelEpoch=0,restoreCallback=null;
 const oomNotified=new Set();
 const ICON = name => {const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');const use=document.createElementNS(svg.namespaceURI,'use');use.setAttribute('href','#i-'+name);svg.append(use);return svg;};
