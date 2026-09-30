@@ -219,6 +219,14 @@ function renderChatVersions() {
 
     header.append(vTag, titleEl, starBtn);
 
+    const meta = document.createElement('div');
+    meta.className = 'version-card-meta';
+    meta.textContent = `${new Date(v.created).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · ${v.cot === 'off' ? 'Direct Audio' : v.cot === 'melody' ? 'Melody' : 'Full Score'}`;
+
+    const stylePreview = document.createElement('div');
+    stylePreview.className = 'version-style-preview';
+    stylePreview.textContent = v.style || 'No style prompt recorded';
+
     const bodyRow = document.createElement('div');
     bodyRow.className = 'version-card-cover-row';
 
@@ -274,7 +282,7 @@ function renderChatVersions() {
 
     actions.append(infoBtn, baseBtn, loadBtn);
 
-    card.append(header, meta, stylePreview);
+    card.append(header, bodyRow);
     if (audioElem) card.append(audioElem);
     card.append(actions);
 
