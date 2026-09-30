@@ -353,6 +353,28 @@ function renderChatMessages() {
         draftCard.append(notes);
       }
 
+      // Inline expandable editor / inspector
+      const editDetails = document.createElement('details');
+      editDetails.className = 'draft-expand-details';
+      editDetails.innerHTML = `
+        <summary class="draft-expand-summary"><svg class="icon-s"><use href="#i-pencil"/></svg> <span>Inspect &amp; Edit Proposal</span></summary>
+        <div class="draft-edit-form">
+          <label class="field-label-s">Title</label>
+          <input type="text" class="draft-input-title" value="${(msg.draft.title || '').replace(/"/g, '&quot;')}" placeholder="Track title">
+          <label class="field-label-s">Musical Style Prompt</label>
+          <textarea class="draft-input-style" rows="2" placeholder="Style prompt">${(msg.draft.style || '').replace(/</g, '&lt;')}</textarea>
+          <label class="field-label-s">Lyrics</label>
+          <textarea class="draft-input-lyrics" rows="4" placeholder="Lyrics">${(msg.draft.lyrics || '').replace(/</g, '&lt;')}</textarea>
+        </div>
+      `;
+      const titleInput = editDetails.querySelector('.draft-input-title');
+      const styleInput = editDetails.querySelector('.draft-input-style');
+      const lyricsInput = editDetails.querySelector('.draft-input-lyrics');
+      if (titleInput) titleInput.oninput = () => { msg.draft.title = titleInput.value; saveChatStorage(); };
+      if (styleInput) styleInput.oninput = () => { msg.draft.style = styleInput.value; draftStyle.textContent = styleInput.value; saveChatStorage(); };
+      if (lyricsInput) lyricsInput.oninput = () => { msg.draft.lyrics = lyricsInput.value; saveChatStorage(); };
+      draftCard.append(editDetails);
+
       // Live Audio Player / Progress inside bubble
       if (msg.job_id) {
         const audioContainer = document.createElement('div');
@@ -362,7 +384,7 @@ function renderChatMessages() {
         draftCard.append(audioContainer);
       } else if (msg.draft.style) {
         const draftActions = document.createElement('div');
-        draftActions.className = 'draft-pending-actions row gap-s';
+        draftActions.className = 'draft-pending-actions row gap-s wrap';
         draftActions.style.marginTop = '10px';
 
         const renderBtn = document.createElement('button');
@@ -415,7 +437,16 @@ function renderChatMessages() {
           toast('Draft loaded into Studio Composer.');
         };
 
-        draftActions.append(renderBtn, loadBtn);
+        const copyPromptBtn = document.createElement('button');
+        copyPromptBtn.type = 'button';
+        copyPromptBtn.className = 'button quiet small';
+        copyPromptBtn.textContent = 'Copy Prompt';
+        copyPromptBtn.onclick = async () => {
+          await navigator.clipboard.writeText(msg.draft.style || '');
+          toast('Style prompt copied to clipboard.');
+        };
+
+        draftActions.append(renderBtn, loadBtn, copyPromptBtn);
         draftCard.append(draftActions);
       }
 
@@ -571,7 +602,9 @@ async function sendChatMessage() {
   chatState.isGenerating = true;
   updateChatSendButton();
 
-  const autoGenerate = $('chatAutoGenToggle') ? $('chatAutoGenToggle').checked : true;
+  const explicitGenKeywords = ['generuj', 'render', 'stwórz', 'wygeneruj', 'odpal', 'nagraj', 'zrób to', 'generate', 'produce this', 'render this', 'let\'s render', 'make it'];
+  const hasIntent = explicitGenKeywords.some(kw => userText.toLowerCase().includes(kw));
+  const autoGenerate = ($('chatAutoGenToggle') ? $('chatAutoGenToggle').checked : false) || hasIntent;
   const currentSongContext = getActiveChatContext();
 
   try {

@@ -35,9 +35,14 @@
     <nav aria-label="Main navigation">
       <button class="nav-item active" data-view="create"><svg><use href="#i-music"/></svg><span>Create music</span></button>
       <button class="nav-item" data-view="chat"><svg><use href="#i-spark"/></svg><span>AI Producer Chat</span><span class="count-badge">AI</span></button>
-      <button class="nav-item" data-view="trainer"><svg><use href="#i-sliders"/></svg><span>Style trainer</span><span class="count-badge">Beta</span></button>
-      <button class="nav-item" data-view="artist"><svg><use href="#i-music"/></svg><span>Artist trainer</span><span class="count-badge">Experimental</span></button>
       <button class="nav-item" data-view="library"><svg><use href="#i-library"/></svg><span>Song library</span><span id="libraryCount" class="nav-count">0</span></button>
+      <details class="sidebar-advanced-group">
+        <summary class="nav-item sidebar-advanced-toggle"><svg><use href="#i-sliders"/></svg><span>Training Labs</span><svg class="chevron"><use href="#i-chevron-down"/></svg></summary>
+        <div class="sidebar-advanced-sub">
+          <button class="nav-item nav-sub-item" data-view="trainer"><svg><use href="#i-sliders"/></svg><span>Style trainer</span><span class="count-badge">Beta</span></button>
+          <button class="nav-item nav-sub-item" data-view="artist"><svg><use href="#i-music"/></svg><span>Artist trainer</span><span class="count-badge">Lab</span></button>
+        </div>
+      </details>
     </nav>
     <div class="sidebar-rule"></div>
     <div class="workspace-label">STUDIO TOOLS</div>
@@ -213,7 +218,7 @@
               </div>
             </div>
             <details class="score-details" id="scoreDetails"><summary><span><svg><use href="#i-file"/></svg>Melody & score <span class="muted">ABC</span></span><span id="scoreBadge">Optional</span></summary><div class="score-body"><p class="hint">Supply a native two-voice ABC score to use an existing melody. A supplied score bypasses the planner. Edit a copy; original run artifacts stay intact.</p><textarea id="abc" class="code-input" rows="10" spellcheck="false" placeholder="Paste native YuE2 / SheetSage2 ABC, or import a .abc file."></textarea><div class="row wrap"><button class="button subtle small" id="importAbc">Import ABC</button><button class="button subtle small" id="checkAbc">Check score</button><button class="button subtle small" id="prepareAbc">Prepare melody</button><select id="keepVoice" aria-label="Melodies to retain"><option value="both">Keep both melodies</option><option value="Vocal">Keep vocal only</option><option value="Ins">Keep instrumental only</option></select></div><p class="hint">Prepare melody removes chord symbols and checks that the retained notes, timing and meter stay unchanged. Selecting one voice silences the other.</p><div id="scoreResult" class="feedback" role="status" hidden></div></div></details>
-            <div class="composer-section" id="genOptionsSection">
+            <div class="composer-section collapsed" id="genOptionsSection">
               <div class="section-collapse-header" data-target="genOptionsBody">
                 <div class="field-top">
                   <label class="field-label">GENERATION MODE & SEED</label>
@@ -224,7 +229,7 @@
                 <div class="generation-options"><div><label for="planMode">Generation mode</label><select id="planMode"><option value="full">Full · melody + harmony</option><option value="melody">Melody · free accompaniment</option><option value="off">Direct audio · no score</option></select><p id="modeHint" class="hint">Plans a melody with chords, then renders the song.</p></div><div><label for="seed">Seed</label><div class="seed-input"><input id="seed" type="text" inputmode="numeric" pattern="[0-9]+" value="831001" maxlength="19"><button id="randomSeed" title="Choose a random seed" aria-label="Choose a random seed"><svg><use href="#i-refresh"/></svg></button></div><p class="hint">Keep the seed to compare variations.</p></div></div>
               </div>
             </div>
-            <div class="composer-section" id="slidersSection">
+            <div class="composer-section collapsed" id="slidersSection">
               <div class="section-collapse-header" data-target="slidersBody">
                 <div class="field-top">
                   <label class="field-label">EXPERIMENTAL SLIDERS</label>
@@ -247,7 +252,7 @@
                 </section>
               </div>
             </div>
-            <div class="composer-section" id="loraSection">
+            <div class="composer-section collapsed" id="loraSection">
               <div class="section-collapse-header" data-target="loraBody">
                 <div class="field-top">
                   <label class="field-label" for="loraSelect">STYLE / ARTIST LORA</label>
