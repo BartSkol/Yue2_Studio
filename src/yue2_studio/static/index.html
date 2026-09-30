@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=2.2.0"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js?v=2.2.0" defer></script><script src="/library.js?v=2.2.0" defer></script><script src="/loras.js?v=2.2.0" defer></script><script src="/trainer.js?v=2.2.0" defer></script><script src="/artist.js?v=2.2.0" defer></script><script src="/audius.js?v=2.2.0" defer></script><script src="/chat.js?v=2.2.0" defer></script><script src="/app.js?v=2.2.0" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=2.3.0"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js?v=2.3.0" defer></script><script src="/library.js?v=2.3.0" defer></script><script src="/loras.js?v=2.3.0" defer></script><script src="/trainer.js?v=2.3.0" defer></script><script src="/artist.js?v=2.3.0" defer></script><script src="/audius.js?v=2.3.0" defer></script><script src="/chat.js?v=2.3.0" defer></script><script src="/app.js?v=2.3.0" defer></script></head>
 <body>
 <svg class="icon-defs" aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -453,6 +453,21 @@
                 <input id="inspectorSeed" type="text" inputmode="numeric" pattern="[0-9]+" value="831001" maxlength="19">
                 <button id="inspectorRandomSeed" title="Randomize seed"><svg><use href="#i-refresh"/></svg></button>
               </div>
+            </div>
+
+            <div class="inspector-field-group">
+              <div class="row between">
+                <label class="field-label" for="inspectorCoverPrompt">ALBUM COVER ART (Z-IMAGE TURBO)</label>
+                <button type="button" class="text-button" id="inspectorGenerateCover"><svg><use href="#i-spark"/></svg>Generate Cover</button>
+              </div>
+              <div id="inspectorCoverBox" class="inspector-cover-container">
+                <img id="inspectorCoverImg" class="inspector-cover-img" alt="Cover preview" hidden>
+                <div id="inspectorCoverPlaceholder" class="inspector-cover-placeholder">
+                  <svg class="icon-m"><use href="#i-palette"/></svg>
+                  <span>No cover generated yet</span>
+                </div>
+              </div>
+              <textarea id="inspectorCoverPrompt" rows="2" class="style-input-s" placeholder="Visual prompt for 1:1 vinyl cover art (auto-generated from song vibe)..."></textarea>
             </div>
           </div>
 

@@ -168,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
                 file = (directory/relative).resolve()
                 if not file.is_relative_to(directory.resolve()) or not file.is_file():
                     raise ValueError('Artifact not found.')
-                self.file(file,download=not file.suffix.lower() in ('.flac','.wav','.mp3','.ogg'))
+                self.file(file,download=not file.suffix.lower() in ('.flac','.wav','.mp3','.ogg','.png','.jpg','.jpeg','.webp'))
             elif path.startswith('/uploads/'):
                 name = path.split('/')[-1]
                 if not re.fullmatch(r'[a-f0-9]{32}\.[a-z0-9]+',name):
@@ -244,6 +244,12 @@ class Handler(BaseHTTPRequestHandler):
                 with self.server.models.lock:
                     if self.server.models.busy(): raise ValueError('Wait for the model download to finish or cancel it first.')
                     self.json(self.server.jobs.generate(data),202)
+            elif path=='/api/cover/generate':
+                from .covers import generate_cover
+                self.json(generate_cover(data))
+            elif path=='/api/cover/prompt':
+                from .covers import generate_cover_prompt
+                self.json(generate_cover_prompt(data))
             elif path=='/api/transcribe':
                 self.json(self.server.jobs.transcribe(data),202)
             elif path=='/api/score':

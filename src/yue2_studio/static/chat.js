@@ -60,6 +60,30 @@ function syncInspectorPanel(data) {
   const strength = data.lora_strength !== undefined ? data.lora_strength : (state.settings?.lora?.strength ?? 1.0);
   if ($('inspectorLoraStrength')) $('inspectorLoraStrength').value = strength;
   if ($('inspectorLoraVal')) $('inspectorLoraVal').textContent = Number(strength).toFixed(2);
+
+  const coverImg = $('inspectorCoverImg');
+  const coverPl = $('inspectorCoverPlaceholder');
+  const coverPromptInput = $('inspectorCoverPrompt');
+
+  if (coverPromptInput) {
+    coverPromptInput.value = data.cover_prompt || '';
+  }
+
+  const coverUrl = data.cover_url || (data.job_id ? `/artifacts/${data.job_id}/result/cover.jpg` : null);
+  if (coverImg && coverPl) {
+    if (coverUrl) {
+      coverImg.src = coverUrl;
+      coverImg.hidden = false;
+      coverPl.hidden = true;
+      coverImg.onerror = () => {
+        coverImg.hidden = true;
+        coverPl.hidden = false;
+      };
+    } else {
+      coverImg.hidden = true;
+      coverPl.hidden = false;
+    }
+  }
 }
 
 function populateInspectorLoras() {
@@ -195,13 +219,23 @@ function renderChatVersions() {
 
     header.append(vTag, titleEl, starBtn);
 
-    const meta = document.createElement('div');
-    meta.className = 'version-card-meta';
-    meta.textContent = `${new Date(v.created).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · ${v.cot === 'off' ? 'Direct Audio' : v.cot === 'melody' ? 'Melody' : 'Full Score'}`;
+    const bodyRow = document.createElement('div');
+    bodyRow.className = 'version-card-cover-row';
 
-    const stylePreview = document.createElement('div');
-    stylePreview.className = 'version-style-preview';
-    stylePreview.textContent = v.style || 'No style prompt recorded';
+    if (v.cover_url || v.job_id) {
+      const coverThumb = document.createElement('img');
+      coverThumb.className = 'version-cover-thumb';
+      coverThumb.src = v.cover_url || `/artifacts/${v.job_id}/result/cover.jpg`;
+      coverThumb.alt = 'Cover';
+      coverThumb.onerror = () => coverThumb.remove();
+      bodyRow.append(coverThumb);
+    }
+
+    const previewBlock = document.createElement('div');
+    previewBlock.style.flex = '1';
+    previewBlock.style.minWidth = '0';
+    previewBlock.append(meta, stylePreview);
+    bodyRow.append(previewBlock);
 
     // Audio player if completed
     let audioElem = null;
@@ -608,8 +642,40 @@ function renderInlineAudioCard(container, jobId, draft) {
       else useRun(job, false);
     };
 
-    actionRow.append(starBtn, dlFlac, dlWav, toStudio);
-    completeBox.append(player, actionRow);
+    const coverArt = document.createElement('img');
+    coverArt.className = 'inline-cover-art';
+    coverArt.src = `/artifacts/${jobId}/result/cover.jpg`;
+    coverArt.alt = `${job.title || 'Track'} Album Cover`;
+    coverArt.onerror = () => coverArt.remove();
+
+    const genCoverBtn = document.createElement('button');
+    genCoverBtn.type = 'button';
+    genCoverBtn.className = 'button subtle small';
+    genCoverBtn.innerHTML = `<svg><use href="#i-palette"/></svg> Cover Art`;
+    genCoverBtn.onclick = async () => {
+      genCoverBtn.disabled = true;
+      genCoverBtn.textContent = 'Generating Cover…';
+      try {
+        const res = await api('/api/cover/generate', {
+          job_id: jobId,
+          title: job.title || '',
+          style: job.input?.request?.style || '',
+          lyrics: job.input?.request?.lyrics || ''
+        });
+        toast('Album cover generated with Z-Image Turbo!');
+        renderChatMessages();
+        renderChatVersions();
+        syncInspectorPanel();
+      } catch (e) {
+        toast('Cover error: ' + e.message, true);
+      } finally {
+        genCoverBtn.disabled = false;
+        genCoverBtn.innerHTML = `<svg><use href="#i-palette"/></svg> Cover Art`;
+      }
+    };
+
+    actionRow.append(starBtn, dlFlac, dlWav, genCoverBtn, toStudio);
+    completeBox.append(coverArt, player, actionRow);
     container.append(completeBox);
   } else if (isFailed) {
     const errorBox = document.createElement('div');
@@ -839,6 +905,79 @@ function bindInspectorUI() {
     copyLyricsBtn.onclick = async () => {
       await navigator.clipboard.writeText(lyrics.value || '');
       toast('Lyrics copied to clipboard.');
+    };
+  }
+
+  const genCoverBtn = $('inspectorGenerateCover');
+  const coverImg = $('inspectorCoverImg');
+  const coverPl = $('inspectorCoverPlaceholder');
+  const coverPromptInput = $('inspectorCoverPrompt');
+
+  if (genCoverBtn) {
+    genCoverBtn.onclick = async () => {
+      let activeJobId = null;
+      if (chatState.activeBaseVersionId) {
+        const v = chatState.versions.find(item => item.id === chatState.activeBaseVersionId);
+        if (v && v.job_id) activeJobId = v.job_id;
+      }
+      if (!activeJobId && chatState.activeChatJobId) {
+        activeJobId = chatState.activeChatJobId;
+      }
+      if (!activeJobId && state.jobs && state.jobs.length) {
+        const lastComplete = state.jobs.find(j => j.status === 'complete');
+        if (lastComplete) activeJobId = lastComplete.id;
+      }
+
+      if (!activeJobId) {
+        toast('Render a song first before generating its album cover.', true);
+        return;
+      }
+
+      genCoverBtn.disabled = true;
+      const origHtml = genCoverBtn.innerHTML;
+      genCoverBtn.innerHTML = `<span class="status-dot pulse"></span> Generating Cover…`;
+
+      try {
+        const curTitle = title ? title.value : '';
+        const curStyle = style ? style.value : '';
+        const curLyrics = lyrics ? lyrics.value : '';
+        const curPrompt = coverPromptInput ? coverPromptInput.value : '';
+        const curSeed = seed ? parseInt(seed.value, 10) : undefined;
+
+        const res = await api('/api/cover/generate', {
+          job_id: activeJobId,
+          title: curTitle,
+          style: curStyle,
+          lyrics: curLyrics,
+          prompt: curPrompt,
+          seed: curSeed
+        });
+
+        toast('Album cover generated with Z-Image Turbo!');
+        if (coverImg && coverPl) {
+          coverImg.src = res.url + '?t=' + Date.now();
+          coverImg.hidden = false;
+          coverPl.hidden = true;
+        }
+        if (coverPromptInput && res.prompt) {
+          coverPromptInput.value = res.prompt;
+        }
+        if (chatState.activeBaseVersionId) {
+          const v = chatState.versions.find(item => item.id === chatState.activeBaseVersionId);
+          if (v) {
+            v.cover_url = res.url;
+            v.cover_prompt = res.prompt;
+            saveChatStorage();
+            renderChatVersions();
+          }
+        }
+        renderChatMessages();
+      } catch (err) {
+        toast('Cover generation error: ' + err.message, true);
+      } finally {
+        genCoverBtn.disabled = false;
+        genCoverBtn.innerHTML = origHtml;
+      }
     };
   }
 
