@@ -230,6 +230,93 @@ def assist(payload):
     return result
 
 
+def _clean_draft_dict(draft: dict, context: dict) -> dict:
+    reply = str(draft.get('producer_reply') or draft.get('reply') or draft.get('message') or draft.get('notes') or '').strip()
+    # Prevent raw JSON block from leaking into chat reply text
+    if not reply or reply.startswith('{') or '"producer_reply"' in reply:
+        m = re.search(r'"producer_reply"\s*:\s*"([^"]+)"', reply)
+        reply = m.group(1) if m else "Oto przygotowana propozycja aranżacji i parametrów utworu:"
+
+    return {
+        'producer_reply': reply,
+        'title': str(draft.get('title') or draft.get('track_title') or draft.get('song_title') or context.get('title') or 'Untitled Track')[:180].strip(),
+        'style': str(draft.get('style') or draft.get('style_prompt') or draft.get('genre') or context.get('style') or '').strip(),
+        'lyrics': str(draft.get('lyrics') or draft.get('text') or context.get('lyrics') or '').strip(),
+        'cot': str(draft.get('cot') or draft.get('mode') or context.get('cot') or 'full').strip(),
+        'lora': str(draft.get('lora') or draft.get('lora_name') or draft.get('adapter') or '').strip(),
+        'producer_notes': str(draft.get('producer_notes') or draft.get('notes') or draft.get('summary') or '').strip()
+    }
+
+
+def _repair_and_parse_json(raw_text: str, context: dict) -> dict:
+    clean = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw_text.strip(), flags=re.I).strip()
+    
+    # 1. Direct JSON parse
+    try:
+        draft = json.loads(clean)
+        if isinstance(draft, dict):
+            return _clean_draft_dict(draft, context)
+    except Exception:
+        pass
+
+    # 2. Extract JSON candidate
+    match = re.search(r'\{.*\}', clean, re.DOTALL)
+    json_candidate = match.group(0) if match else clean
+
+    # 3. Syntax repair heuristics (missing commas, unescaped quotes, trailing commas)
+    repaired = json_candidate
+    repaired = re.sub(r'"(\s*\n\s*)"', r'",\1"', repaired)
+    repaired = re.sub(r'([0-9]|true|false|null)(\s*\n\s*)"', r'\1,\2"', repaired, flags=re.I)
+    repaired = re.sub(r',(\s*\})', r'\1', repaired)
+
+    try:
+        draft = json.loads(repaired)
+        if isinstance(draft, dict):
+            return _clean_draft_dict(draft, context)
+    except Exception:
+        pass
+
+    # 4. Regex fallback field extraction
+    def extract_field(key_names):
+        if isinstance(key_names, str):
+            key_names = [key_names]
+        for key in key_names:
+            p1 = rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*)"'
+            m1 = re.search(p1, json_candidate, re.DOTALL | re.IGNORECASE)
+            if m1:
+                try:
+                    return json.loads(f'"{m1.group(1)}"')
+                except Exception:
+                    return m1.group(1).replace('\\n', '\n').replace('\\"', '"')
+            p2 = rf'"{key}"\s*:\s*"(.*?)"(?=\s*,\s*"|\s*\n\s*"|\s*\}})'
+            m2 = re.search(p2, json_candidate, re.DOTALL | re.IGNORECASE)
+            if m2:
+                return m2.group(1).replace('\\n', '\n').replace('\\"', '"')
+        return None
+
+    reply = extract_field(['producer_reply', 'reply', 'message', 'response'])
+    title = extract_field(['title', 'track_title', 'song_title'])
+    style = extract_field(['style', 'style_prompt', 'prompt', 'genre'])
+    lyrics = extract_field(['lyrics', 'lyric', 'text'])
+    cot = extract_field(['cot', 'mode'])
+    lora = extract_field(['lora', 'lora_name', 'adapter'])
+    notes = extract_field(['producer_notes', 'notes', 'summary'])
+
+    if not reply:
+        outside_text = re.sub(r'\{.*\}', '', clean, flags=re.DOTALL).strip()
+        reply = outside_text if outside_text else "Oto przygotowana propozycja aranżacji i parametrów utworu:"
+
+    return {
+        'producer_reply': reply,
+        'title': title or context.get('title') or 'Untitled Track',
+        'style': style or context.get('style') or '',
+        'lyrics': lyrics or context.get('lyrics') or '',
+        'cot': cot or context.get('cot') or 'full',
+        'lora': lora or '',
+        'producer_notes': notes or ''
+    }
+
+
 def produce(payload):
     message = str(payload.get('message') or '').strip()
     if not message:
@@ -265,34 +352,6 @@ def produce(payload):
     user_json = json.dumps(producer_input, ensure_ascii=False)
     
     result = complete(payload.get('connection'), system, user_json)
-    raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', result['text'], flags=re.I).strip()
-    match = re.search(r'\{.*\}', raw, re.DOTALL)
-    if match:
-        raw = match.group(0)
-        
-    try:
-        draft = json.loads(raw)
-        if not isinstance(draft, dict):
-            raise ValueError('Expected JSON object')
-        result['draft'] = {
-            'producer_reply': str(draft.get('producer_reply') or draft.get('notes') or 'Here is your updated track!'),
-            'title': str(draft.get('title') or context['title'] or 'Untitled Track')[:180],
-            'style': str(draft.get('style') or context['style'] or ''),
-            'lyrics': str(draft.get('lyrics') or context['lyrics'] or ''),
-            'cot': str(draft.get('cot') or context['cot'] or 'full'),
-            'lora': str(draft.get('lora') or ''),
-            'producer_notes': str(draft.get('producer_notes') or draft.get('notes') or '')
-        }
-    except (ValueError, TypeError):
-        result['draft'] = {
-            'producer_reply': result['text'],
-            'title': context['title'] or 'Untitled Track',
-            'style': context['style'],
-            'lyrics': context['lyrics'],
-            'cot': context['cot'],
-            'lora': '',
-            'producer_notes': 'Model returned raw text.'
-        }
-        result['warning'] = 'The model response was not strict JSON, but was captured as direct producer feedback.'
+    result['draft'] = _repair_and_parse_json(result['text'], context)
     return result
 

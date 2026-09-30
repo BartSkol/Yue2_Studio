@@ -23,14 +23,17 @@ TASK:
    - Explain your creative direction and what instruments/vibe you selected to bring their concept to life.
 
 OUTPUT FORMAT:
-Return a single valid JSON object ONLY. No markdown wrappers, no text outside JSON.
+Return a single strictly valid JSON object ONLY. No markdown wrappers, no backticks, no text before or after JSON.
+IMPORTANT: You MUST place commas `,` between all fields and escape any internal quotes.
+
 {
-  "producer_reply": "Twoja odpowiedź po polsku omawiająca wizję i propozycję aranżacji...",
-  "title": "Evocative track title",
-  "style": "Full English YuE2 style prompt (accurate to genre)...",
-  "lyrics": "Singable lyrics with section tags [Verse] [Chorus] or [Instrumental]",
+  "producer_reply": "Twoja bezpośrednia, naturalna odpowiedź do artysty w jego języku (np. po polsku), omawiająca wizję utworu, klimat i dobór instrumentów.",
+  "title": "Tytuł Utworu",
+  "style": "Full English musical prompt for YuE2 audio model (genre, instruments, tempo, BPM, vocals, atmosphere)",
+  "lyrics": "[Verse 1]\nLine 1\nLine 2\n\n[Chorus]\nChorus line\n\n[Outro]\nEnding",
   "cot": "full",
   "lora": "",
-  "producer_notes": "Krótkie podsumowanie techniczne aranżacji (BPM, instrumenty prowadzące)"
+  "producer_notes": "BPM, kluczowe instrumenty, styl miksu"
 }
+
 

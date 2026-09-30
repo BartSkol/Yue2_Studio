@@ -106,6 +106,59 @@ function syncInspectorPanel(data) {
   }
 }
 
+function openInspectorWithDraft(data) {
+  setChatInspectorCollapsed(false);
+  syncInspectorPanel(data);
+  const p = $('chatInspectorPanel');
+  if (p) {
+    p.scrollIntoView({ behavior: 'smooth' });
+    p.style.borderColor = 'var(--accent)';
+    p.style.boxShadow = '0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)';
+    setTimeout(() => {
+      p.style.borderColor = '';
+      p.style.boxShadow = '';
+    }, 1400);
+  }
+}
+
+function setChatVersionsCollapsed(collapsed, persist = true) {
+  const container = $('chatLayoutContainer');
+  const toggleBtn = $('toggleVersionsPanelBtn');
+  const collapseBtn = $('collapseVersionsBtn');
+  if (!container) return;
+  container.classList.toggle('versions-collapsed', collapsed);
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active-toggle', !collapsed);
+    toggleBtn.title = collapsed ? 'Pokaż historię wersji' : 'Ukryj historię wersji';
+  }
+  if (collapseBtn) {
+    collapseBtn.title = collapsed ? 'Rozwiń panel historii' : 'Zwiń panel historii';
+    collapseBtn.setAttribute('aria-expanded', String(!collapsed));
+  }
+  if (persist) {
+    try { localStorage.setItem('yue2_chat_versions_collapsed', collapsed ? 'true' : 'false'); } catch (e) {}
+  }
+}
+
+function setChatInspectorCollapsed(collapsed, persist = true) {
+  const container = $('chatLayoutContainer');
+  const toggleBtn = $('toggleInspectorPanelBtn');
+  const collapseBtn = $('collapseInspectorBtn');
+  if (!container) return;
+  container.classList.toggle('inspector-collapsed', collapsed);
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active-toggle', !collapsed);
+    toggleBtn.title = collapsed ? 'Pokaż panel roboczy (Inspektor)' : 'Ukryj panel roboczy (Inspektor)';
+  }
+  if (collapseBtn) {
+    collapseBtn.title = collapsed ? 'Rozwiń panel roboczy' : 'Zwiń panel roboczy';
+    collapseBtn.setAttribute('aria-expanded', String(!collapsed));
+  }
+  if (persist) {
+    try { localStorage.setItem('yue2_chat_inspector_collapsed', collapsed ? 'true' : 'false'); } catch (e) {}
+  }
+}
+
 function populateInspectorLoras() {
   const select = $('inspectorLora');
   if (!select) return;
@@ -126,6 +179,14 @@ function initChat() {
   renderChatVersions();
   updateChatBaseIndicator();
   syncInspectorPanel();
+
+  // Restore collapsed panel states
+  try {
+    const vCol = localStorage.getItem('yue2_chat_versions_collapsed') === 'true';
+    const iCol = localStorage.getItem('yue2_chat_inspector_collapsed') === 'true';
+    if (vCol) setChatVersionsCollapsed(true, false);
+    if (iCol) setChatInspectorCollapsed(true, false);
+  } catch (e) {}
 
   // Check URL params for standalone view mode (?view=chat)
   const params = new URLSearchParams(window.location.search);
@@ -289,13 +350,7 @@ function renderChatVersions() {
     settingsBtn.title = 'Open track settings in Inspector';
     settingsBtn.onclick = (e) => {
       e.stopPropagation();
-      syncInspectorPanel(v);
-      const p = $('chatInspectorPanel');
-      if (p) {
-        p.scrollIntoView({ behavior: 'smooth' });
-        p.style.borderColor = 'var(--accent)';
-        setTimeout(() => { p.style.borderColor = ''; }, 1200);
-      }
+      openInspectorWithDraft(v);
       toast(`Version v${v.version_num} loaded into Inspector Settings.`);
     };
 
@@ -462,7 +517,13 @@ function renderChatMessages() {
 
     const content = document.createElement('div');
     content.className = 'bubble-text';
-    content.textContent = msg.content;
+    // Clean content in case legacy or raw text leaked
+    let cleanText = msg.content || '';
+    if (cleanText.includes('"producer_reply":')) {
+      const m = cleanText.match(/"producer_reply"\s*:\s*"([^"]+)"/);
+      if (m) cleanText = m[1];
+    }
+    content.textContent = cleanText;
     bubble.append(content);
 
     // If producer message has structured track draft / job
@@ -471,6 +532,7 @@ function renderChatMessages() {
       if (draft) {
         const draftCard = document.createElement('div');
         draftCard.className = 'message-draft-card';
+        draftCard.title = 'Kliknij, aby otworzyć i edytować parametry w prawym panelu (Inspektor)';
 
         const draftHeader = document.createElement('div');
         draftHeader.className = 'draft-card-header';
@@ -491,28 +553,6 @@ function renderChatMessages() {
           notes.textContent = `💡 Notatki producenta: ${draft.producer_notes}`;
           draftCard.append(notes);
         }
-
-        // Inline expandable editor / inspector
-        const editDetails = document.createElement('details');
-        editDetails.className = 'draft-expand-details';
-        editDetails.innerHTML = `
-          <summary class="draft-expand-summary"><svg class="icon-s"><use href="#i-pencil"/></svg> <span>Podgląd i edycja propozycji</span></summary>
-          <div class="draft-edit-form">
-            <label class="field-label-s">Tytuł utworu</label>
-            <input type="text" class="draft-input-title" value="${(draft.title || '').replace(/"/g, '&quot;')}" placeholder="Tytuł utworu">
-            <label class="field-label-s">Styl muzyczny (Prompt)</label>
-            <textarea class="draft-input-style" rows="2" placeholder="Styl utworu">${(draft.style || '').replace(/</g, '&lt;')}</textarea>
-            <label class="field-label-s">Tekst piosenki (Lyrics)</label>
-            <textarea class="draft-input-lyrics" rows="4" placeholder="Tekst">${(draft.lyrics || '').replace(/</g, '&lt;')}</textarea>
-          </div>
-        `;
-        const titleInput = editDetails.querySelector('.draft-input-title');
-        const styleInput = editDetails.querySelector('.draft-input-style');
-        const lyricsInput = editDetails.querySelector('.draft-input-lyrics');
-        if (titleInput) titleInput.oninput = () => { draft.title = titleInput.value; saveChatStorage(); };
-        if (styleInput) styleInput.oninput = () => { draft.style = styleInput.value; draftStyle.textContent = styleInput.value; saveChatStorage(); };
-        if (lyricsInput) lyricsInput.oninput = () => { draft.lyrics = lyricsInput.value; saveChatStorage(); };
-        draftCard.append(editDetails);
 
         // Live Audio Player / Progress inside bubble
         if (msg.job_id) {
@@ -577,7 +617,7 @@ function renderChatMessages() {
               renderChatMessages();
               renderChatVersions();
               updateChatBaseIndicator();
-              syncInspectorPanel(newVersion);
+              openInspectorWithDraft(newVersion);
               if (typeof poll === 'function') poll();
               toast('Utwór przekazany do renderowania na GPU!');
             } catch (err) {
@@ -591,16 +631,10 @@ function renderChatMessages() {
           inspectorBtn.type = 'button';
           inspectorBtn.className = 'button subtle small';
           inspectorBtn.innerHTML = `<svg><use href="#i-sliders"/></svg> Inspektor`;
-          inspectorBtn.title = 'Otwórz propozycję w prawym panelu roboczym (Inspektor)';
+          inspectorBtn.title = 'Otwórz i edytuj propozycję w prawym panelu roboczym';
           inspectorBtn.onclick = (e) => {
             e.stopPropagation();
-            syncInspectorPanel(draft);
-            const p = $('chatInspectorPanel');
-            if (p) {
-              p.scrollIntoView({ behavior: 'smooth' });
-              p.style.borderColor = 'var(--accent)';
-              setTimeout(() => { p.style.borderColor = ''; }, 1200);
-            }
+            openInspectorWithDraft(draft);
             toast('Propozycja załadowana do Inspektora.');
           };
 
@@ -637,7 +671,7 @@ function renderChatMessages() {
         draftCard.style.cursor = 'pointer';
         draftCard.onclick = (e) => {
           if (e.target.closest('button, input, textarea, a, summary, details')) return;
-          syncInspectorPanel(draft);
+          openInspectorWithDraft(draft);
           toast('Załadowano propozycję do Inspektora.');
         };
 
@@ -920,8 +954,8 @@ function renderInlineAudioCard(container, jobId, draft) {
     inspBtn.title = 'Otwórz ten utwór w Inspektorze';
     inspBtn.onclick = () => {
       const v = chatState.versions.find(item => item.job_id === jobId);
-      if (v) syncInspectorPanel(v);
-      else syncInspectorPanel({
+      if (v) openInspectorWithDraft(v);
+      else openInspectorWithDraft({
         title: job.title || '',
         style: job.input?.request?.style || '',
         lyrics: job.input?.request?.lyrics || '',
@@ -929,12 +963,6 @@ function renderInlineAudioCard(container, jobId, draft) {
         seed: job.input?.request?.seed || null,
         job_id: jobId
       });
-      const p = $('chatInspectorPanel');
-      if (p) {
-        p.scrollIntoView({ behavior: 'smooth' });
-        p.style.borderColor = 'var(--accent)';
-        setTimeout(() => { p.style.borderColor = ''; }, 1200);
-      }
       toast('Utwór otwarty w Inspektorze.');
     };
 
@@ -1036,7 +1064,7 @@ async function sendChatMessage() {
     renderChatMessages();
     renderChatVersions();
     updateChatBaseIndicator();
-    syncInspectorPanel(newVersion);
+    openInspectorWithDraft(newVersion);
 
     if (jobId) {
       chatState.activeChatJobId = jobId;
@@ -1452,6 +1480,38 @@ function bindChatUI() {
   if (popoutTopbarBtn) popoutTopbarBtn.onclick = openChatPopout;
   if (resetBaseBtn) resetBaseBtn.onclick = () => setChatBaseVersion(null);
 
+  // Panel Collapsing Controls
+  const collapseVersionsBtn = $('collapseVersionsBtn');
+  const toggleVersionsPanelBtn = $('toggleVersionsPanelBtn');
+  const collapseInspectorBtn = $('collapseInspectorBtn');
+  const toggleInspectorPanelBtn = $('toggleInspectorPanelBtn');
+
+  if (collapseVersionsBtn) {
+    collapseVersionsBtn.onclick = () => {
+      const isCol = $('chatLayoutContainer')?.classList.contains('versions-collapsed');
+      setChatVersionsCollapsed(!isCol);
+    };
+  }
+  if (toggleVersionsPanelBtn) {
+    toggleVersionsPanelBtn.onclick = () => {
+      const isCol = $('chatLayoutContainer')?.classList.contains('versions-collapsed');
+      setChatVersionsCollapsed(!isCol);
+    };
+  }
+
+  if (collapseInspectorBtn) {
+    collapseInspectorBtn.onclick = () => {
+      const isCol = $('chatLayoutContainer')?.classList.contains('inspector-collapsed');
+      setChatInspectorCollapsed(!isCol);
+    };
+  }
+  if (toggleInspectorPanelBtn) {
+    toggleInspectorPanelBtn.onclick = () => {
+      const isCol = $('chatLayoutContainer')?.classList.contains('inspector-collapsed');
+      setChatInspectorCollapsed(!isCol);
+    };
+  }
+
   // Quick suggestion chips
   document.querySelectorAll('.chat-chip[data-prompt]').forEach(chip => {
     chip.onclick = () => {
@@ -1537,7 +1597,7 @@ window.loadSongIntoChat = function(job) {
   renderChatMessages();
   renderChatVersions();
   updateChatBaseIndicator();
-  syncInspectorPanel(newVersion);
+  openInspectorWithDraft(newVersion);
   if (typeof switchView === 'function') switchView('chat');
   toast(`Utwór "${job.title}" załadowany do czatu z AI Producerem!`);
 };

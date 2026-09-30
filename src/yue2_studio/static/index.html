@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=2.3.4"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js?v=2.3.4" defer></script><script src="/library.js?v=2.3.4" defer></script><script src="/loras.js?v=2.3.4" defer></script><script src="/trainer.js?v=2.3.4" defer></script><script src="/artist.js?v=2.3.4" defer></script><script src="/audius.js?v=2.3.4" defer></script><script src="/chat.js?v=2.3.4" defer></script><script src="/app.js?v=2.3.4" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111614"><title>YuE2 Studio · Beta — Make something worth hearing</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=2.3.5"><script src="https://cdn.jsdelivr.net/npm/@audius/sdk@16.0.0/dist/sdk.min.js" defer></script><script src="/models.js?v=2.3.5" defer></script><script src="/library.js?v=2.3.5" defer></script><script src="/loras.js?v=2.3.5" defer></script><script src="/trainer.js?v=2.3.5" defer></script><script src="/artist.js?v=2.3.5" defer></script><script src="/audius.js?v=2.3.5" defer></script><script src="/chat.js?v=2.3.5" defer></script><script src="/app.js?v=2.3.5" defer></script></head>
 <body>
 <svg class="icon-defs" aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -340,21 +340,24 @@
       <section id="activeRun" class="active-run" hidden aria-live="polite"><div class="section-heading"><div><span class="eyebrow">IN THE STUDIO</span><h3 id="activeTitle"></h3></div><button class="button subtle small" id="activeOpen">View run</button></div><div class="row"><span class="status-dot pulse"></span><span id="activeStatus"></span></div><div id="activeProgress" class="engine-progress"></div><pre id="activeLog"></pre></section>
     </main>
     <main id="chatView" hidden>
-      <div class="chat-layout">
+      <div class="chat-layout" id="chatLayoutContainer">
         <!-- Left Side: Song Iteration Versions -->
-        <aside class="chat-versions-sidebar">
+        <aside class="chat-versions-sidebar" id="chatVersionsSidebar">
           <div class="versions-header">
             <div>
               <span class="eyebrow">SESSION HISTORY</span>
               <h2>Song Versions <span id="chatVersionsCount" class="count-badge">0</span></h2>
             </div>
-            <button class="button quiet small" id="resetChatBaseBtn" title="Reset base to current Studio draft"><svg><use href="#i-refresh"/></svg>Reset Base</button>
+            <div class="row gap-s">
+              <button class="button quiet small" id="resetChatBaseBtn" title="Reset base to current Studio draft"><svg><use href="#i-refresh"/></svg>Reset Base</button>
+              <button class="icon-button collapse-btn" id="collapseVersionsBtn" title="Zwiń panel historii wersji" aria-label="Zwiń panel"><svg><use href="#i-sidebar"/></svg></button>
+            </div>
           </div>
           <p class="hint">Every song iteration created with the AI Producer is saved here with prompt info and 1-click Studio loading.</p>
           <div id="chatVersionsList" class="chat-versions-list"></div>
         </aside>
 
-        <!-- Right Side: Conversational Producer Feed & Input -->
+        <!-- Middle: Conversational Producer Feed & Input -->
         <section class="chat-main-panel">
           <div class="chat-panel-topbar">
             <div class="chat-base-info" id="chatBaseBadge">
@@ -365,6 +368,8 @@
               </div>
             </div>
             <div class="chat-topbar-actions">
+              <button class="button quiet small" id="toggleVersionsPanelBtn" title="Pokaż / Ukryj historię wersji"><svg><use href="#i-library"/></svg><span>Wersje</span></button>
+              <button class="button quiet small" id="toggleInspectorPanelBtn" title="Pokaż / Ukryj panel roboczy (Inspektor)"><svg><use href="#i-sliders"/></svg><span>Inspektor</span></button>
               <button class="button quiet small" id="popoutChatBtn" title="Pop-out in a separate window"><svg><use href="#i-external"/></svg>Pop-out</button>
               <button class="button quiet small" id="clearChatBtn" title="Clear conversation"><svg><use href="#i-trash"/></svg>Clear</button>
             </div>
@@ -402,7 +407,10 @@
               <span class="eyebrow">TRACK WORKSTATION</span>
               <h2>Inspector</h2>
             </div>
-            <button class="button quiet small" id="syncInspectorToComposer" title="Copy active proposal to main Studio Composer"><svg><use href="#i-upload"/></svg>To Composer</button>
+            <div class="row gap-s">
+              <button class="button quiet small" id="syncInspectorToComposer" title="Copy active proposal to main Studio Composer"><svg><use href="#i-upload"/></svg>To Composer</button>
+              <button class="icon-button collapse-btn" id="collapseInspectorBtn" title="Zwiń panel roboczy" aria-label="Zwiń panel"><svg><use href="#i-sidebar"/></svg></button>
+            </div>
           </div>
 
           <div class="inspector-scroll-area">
